@@ -1,7 +1,7 @@
 import sys
 import os.path as osp
 
-sys.path.insert(0, str(osp.join('..', 'src', 'wavelet_noise')))
+sys.path.insert(0, str(osp.join('..', 'src')))
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
