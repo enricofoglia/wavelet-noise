@@ -14,7 +14,7 @@ def toy_example():
         frequency = (a * (t + t0)) ** 2
         chirp = np.sin(2 * np.pi * frequency * t)
         return chirp, frequency
-    
+
     # generate signal
     t = np.linspace(0, 1, 1000)
     fs = 1/(t[1] - t[0])  # Sampling frequency
@@ -93,6 +93,15 @@ def main():
     ax.set_ylabel(r'$f$ [Hz]')
     fig.colorbar(sg, ax=ax, label=r'$\vert \mathcal{W}[f] \vert$')
     plt.show()
+
+    # ==============================================
+    #  DWT
+    # ==============================================
+    wavelet = 'db12'
+    f, coeffs = wn.wavelet.dwt(p_te, wavelet=wavelet, mode='constant', axis=0, fs=fs)
+    print(len(coeffs))
+    print(coeffs[2].shape)
+    print(f)
 
 
 if __name__ == "__main__":
