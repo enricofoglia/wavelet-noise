@@ -1,0 +1,17 @@
+[project]
+name = "wavelet-noise"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { email = "enricofoglia99@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+wavelet-noise = "wavelet_noise:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
