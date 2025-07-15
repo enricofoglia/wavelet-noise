@@ -8,3 +8,4 @@ Welcome to the ``wavelet_noise`` documentation! This package provides tools to u
    :caption: Contents:
 
    theory
+   modules
