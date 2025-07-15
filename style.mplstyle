@@ -1,0 +1,10 @@
+axes.titlesize : 18
+axes.labelsize : 16
+lines.linewidth : 2
+lines.markersize : 10
+xtick.labelsize : 14
+ytick.labelsize : 14
+text.usetex : True
+font.family : serif
+font.serif : Computer Modern Roman
+font.size : 14

@@ -7,7 +7,12 @@ authors = [
     { email = "enricofoglia99@gmail.com" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "h5py>=3.14.0",
+    "matplotlib>=3.10.3",
+    "numpy>=2.3.1",
+    "pywavelets>=1.8.0",
+]
 
 [project.scripts]
 wavelet-noise = "wavelet_noise:main"
@@ -15,3 +20,9 @@ wavelet-noise = "wavelet_noise:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "pyqt6>=6.9.1",
+    "ruff>=0.12.3",
+]

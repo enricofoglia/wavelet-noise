@@ -1,6 +1,6 @@
 import numpy as np
 
-import pywavelets as pw
+import pywt as pw
 
 
 def dwt(
@@ -17,9 +17,14 @@ def idwt(
 
 def cwt(
         data: np.ndarray,
-        scales: np.ndarray,
+        freq: np.ndarray,
+        wavelet: str = 'cmor1.5-1.0',
+        fs: float = 1.0,
         **kwargs,
-
 ):
-
-    return pw.cwt(data, scales, **kwargs)
+    """
+    Continuous Wavelet Transform (CWT) using PyWavelets.
+    """
+    scales = pw.frequency2scale(wavelet=wavelet, freq=freq/fs, precision=8)
+    cw, _ = pw.cwt(data, scales, wavelet, **kwargs)
+    return cw
