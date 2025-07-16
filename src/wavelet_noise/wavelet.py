@@ -41,7 +41,8 @@ def dwt(
     if level is None:
         level = pw.dwt_max_level(len(data), filter_len=wavelet)
 
-    freq = pw.scale2frequency(wavelet=wavelet, scale=2**np.arange(1, level-1))
+    freq = pw.scale2frequency(wavelet=wavelet,
+                              scale=2.0**np.arange(1, level-1))
     dw = pw.wavedec(data, wavelet=wavelet, mode=mode, level=level, axis=axis)
     return freq * fs, dw
 
