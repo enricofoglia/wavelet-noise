@@ -100,18 +100,18 @@ def coherent_vortex_extraction(
 ) -> Tuple[np.array, np.array]:
 
     x = data - np.mean(data, axis=0)
-    _, coef = dwt(x, wavelet=wavelet, mode="constant", axis=0, type="numpy")
-    N, Ni = len(data), len(data)
+    _, coef = dwt(x, wavelet=wavelet, mode="periodic", axis=0, type="numpy")
+    N, Ni = len(coef), len(coef)
     T = (2.0 * np.var(coef) * np.log(N)) ** 0.5
 
-    Ni_new = 0
+    Ni_new = Ni - tol
     it = 0
     while (Ni_new <= Ni - tol) and it < max_iter:
-        coef_i = coef[coef < T]
+        Ni = Ni_new
+        coef_i = coef[np.abs(coef) < T]
         T = (2.0 * np.var(coef_i) * np.log(N)) ** 0.5
 
         it += 1
-        Ni = Ni_new
         Ni_new = sum(coef_i < T)
         if iter == max_iter:
             warn(
@@ -128,8 +128,9 @@ def coherent_vortex_extraction(
             )
             return np.array([]), np.array([])
 
-    _, coef_i = dwt(x, wavelet=wavelet, mode="constant", axis=0, type="list")
-    coef_i[1:] = [np.where(np.abs(c) < T, 0.0, c) for c in coef_i[1:]]
+    _, coef_i = dwt(x, wavelet=wavelet, mode="periodic", axis=0, type="list")
+    coef_i[1:] = [np.where(np.abs(c) < T, c, 0.0) for c in coef_i[1:]]
+    coef_i[0] = np.zeros_like(coef_i[0])
     noise = pw.waverec(coef_i, wavelet=wavelet, mode="constant", axis=0)
     signal = data - noise
     return signal, noise

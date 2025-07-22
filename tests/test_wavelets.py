@@ -14,51 +14,69 @@ def test_chirp():
 
     # generate signal
     t = np.linspace(0, 1, 1000)
-    fs = 1/(t[1] - t[0])  # Sampling frequency
+    fs = 1 / (t[1] - t[0])  # Sampling frequency
     chirp1, frequency1 = make_chirp(t, 0.2, 9)
     chirp2, frequency2 = make_chirp(t, 0.1, 5)
     chirp = chirp1 + 0.6 * chirp2
     chirp *= gaussian(t, 0.5, 0.2)
 
     freq = np.geomspace(2, 500, 150)
-    cw = wn.wavelet.cwt(chirp, freq, wavelet='cmor1.5-1.0', fs=fs,
-                        method='fft')
+    cw = wn.wavelet.cwt(chirp, freq, wavelet="cmor1.5-1.0", fs=fs,
+                        method="fft")
     # ==============================================
     #    Plot Scaleogram
     # ==============================================
     t_grid, f_grid = np.meshgrid(t, freq)
 
     fig, ax = plt.subplots()
-    sg = ax.pcolormesh(t_grid, f_grid, np.abs(cw), shading='nearest',
-                       cmap='bone')
-    ax.set_yscale('log')
-    ax.set_xlabel(r'$t$ [s]')
-    ax.set_ylabel(r'$f$ [Hz]')
-    fig.colorbar(sg, ax=ax, label=r'$\vert \mathcal{W}\{f\} \vert$')
+    sg = ax.pcolormesh(t_grid, f_grid, np.abs(cw), shading="nearest",
+                       cmap="bone")
+    ax.set_yscale("log")
+    ax.set_xlabel(r"$t$ [s]")
+    ax.set_ylabel(r"$f$ [Hz]")
+    fig.colorbar(sg, ax=ax, label=r"$\vert \mathcal{W}\{f\} \vert$")
     plt.show()
 
 
 def test_coherent_vortex_extraction():
     # Generate a sample signal with noise
     t = np.linspace(0, 1, 1000)
-    fs = 1000  # Sampling frequency
-    signal = np.sin(2 * np.pi * 50 * t) + np.random.normal(0, 0.5, len(t))
+    signal = np.sin(2 * np.pi * 5 * t) 
+    noise = np.random.normal(0, 0.1, len(t))
+    noisy_signal = signal + noise
 
     # Apply coherent vortex extraction
-    wavelet = 'db4'
-    signal_extracted, noise = wn.wavelet.coherent_vortex_extraction(
-        signal, wavelet=wavelet, max_iter=20, tol=1)
+    wavelet = "coif8"
+    signal_extracted, noise_extracted = wn.wavelet.coherent_vortex_extraction(
+        noisy_signal, wavelet=wavelet, max_iter=20, tol=1
+    )
 
-    # Plot the original signal, extracted signal, and noise
-    plt.figure(figsize=(12, 6))
-    plt.plot(t, signal, label='Original Signal', alpha=0.5)
-    plt.plot(t, signal_extracted, label='Extracted Signal', color='orange')
-    plt.plot(t, noise, label='Noise', color='red')
-    plt.legend()
-    plt.xlabel('Time [s]')
-    plt.ylabel('Amplitude')
-    plt.title('Coherent Vortex Extraction')
+    err = np.abs(signal - signal_extracted)
+    print(f"Mean error in signal extraction: {err.mean():.4f}")
+
+    fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
+    axs[0].plot(t, noisy_signal, label="Noisy Signal")
+    axs[1].plot(t, signal, label=r"Original Signal $f(t)$")
+    axs[1].plot(t, signal_extracted, "k--",
+                label=r"Denoised Signal $\tilde f(t)$")
+    axs[1].plot(t, err, label=r"Error $\vert f(t)-\tilde f(t)\vert$",
+                color='tab:red')
+    axs[2].plot(t, noise, label=r"Noise $w(t)$")
+    axs[2].plot(t, noise_extracted, "k--", 
+                label=r"Extracted Noise $\tilde w(t)$")
+
+    axs[2].set_xlabel(r"$t$")
+    axs[0].set_ylabel(r"$f(t)+w(t)$")
+    axs[1].set_ylabel(r"$f(t),\;\tilde f(t)$")
+    axs[2].set_ylabel(r"$w(t),\;\tilde w(t)$")
+    for ax in axs:
+        ax.legend()
+        ax.grid()
+        ax.set_xlim(t[0], t[-1])
+
+    plt.tight_layout()
     plt.show()
+
 
 if __name__ == "__main__":
     test_chirp()
