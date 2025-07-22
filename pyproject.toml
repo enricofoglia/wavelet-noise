@@ -26,3 +26,9 @@ dev = [
     "pyqt6>=6.9.1",
     "ruff>=0.12.3",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.format]
+docstring-code-format = true
