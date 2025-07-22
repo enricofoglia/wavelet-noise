@@ -4,8 +4,20 @@ from warnings import warn
 
 import numpy as np
 
+from dataclasses import dataclass
+
 import pywt as pw
 
+@dataclass
+class CVEResults:
+    """Results of the Coherent Vortex Extraction convergence."""
+    iterations: int
+    final_threshold: float
+    num_coherent_coeffs: int
+    num_incoherent_coeffs: int
+    signal: np.ndarray
+    noise: np.ndarray
+    incoherent_coeffs_history: list
 
 def dwt(
     data: np.ndarray,
@@ -133,8 +145,9 @@ def coherent_vortex_extraction(
     N, Ni = len(coef), len(coef)
     T = (2.0 * np.var(coef) * np.log(N)) ** 0.5
 
-    Ni_new = Ni - tol
+    Ni_new = Ni_new = sum(coef < T)
     it = 0
+    Ni_history = [Ni]
     while (Ni_new <= Ni - tol) and it < max_iter:
         Ni = Ni_new
         coef_i = coef[np.abs(coef) < T]
@@ -142,6 +155,7 @@ def coherent_vortex_extraction(
 
         it += 1
         Ni_new = sum(coef_i < T)
+        Ni_history.append(Ni_new)
         if iter == max_iter:
             warn(
                 f"Maximum iterations reached: {max_iter}.\n"
@@ -162,7 +176,17 @@ def coherent_vortex_extraction(
     coef_i[0] = np.zeros_like(coef_i[0])
     noise = pw.waverec(coef_i, wavelet=wavelet, mode="constant", axis=0)
     signal = data - noise
-    return signal, noise
+
+    results = CVEResults(
+        iterations=it,
+        final_threshold=T,
+        num_coherent_coeffs=N-Ni_new,
+        num_incoherent_coeffs=Ni,
+        signal=signal,
+        noise=noise,
+        incoherent_coeffs_history=Ni_history
+    )
+    return results
 
 
 def _count_coef(coef: list, T: float = 0.0, details_only: bool = True) -> int:
