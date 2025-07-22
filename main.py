@@ -12,7 +12,7 @@ def main():
     data_file = os.path.join(data_dir, "SherFWHsolid1_p_raw_data_250.h5")
 
     info_dict = wn.utils.get_data_info(data_file, verbose=False)
-    p_te = wn.utils.extract_pressure_te(data_file, 100, 2**12, False)
+    p_te = wn.utils.extract_pressure_te(data_file, 50, info_dict['N'], False)
 
     # ==============================================
     #    De-normalize the data
@@ -40,9 +40,9 @@ def main():
     # ==============================================
     idx = n_sens // 2
     freq = np.logspace(np.log10(20), np.log10(20e3), 150)
-    cw = wn.wavelet.cwt(p_te[:, idx], freq, wavelet='cmor1.5-1.0', fs=fs,
+    cw = wn.wavelet.cwt(p_te[:, idx], freq, wavelet='cmor2.5-1.5', fs=fs,
                         method='fft')
-    
+
     # ==============================================
     #    Plot Scaleogram
     # ==============================================
@@ -58,6 +58,16 @@ def main():
     ax.set_ylabel(r'$f$ [Hz]')
     fig.colorbar(sg, ax=ax, label=r'$\vert \mathcal{W}[f] \vert$')
     plt.show()
+
+    # ==============================================
+    #  DWT
+    # ==============================================
+    wavelet = 'coif4'
+    f, coeffs = wn.wavelet.dwt(p_te, wavelet=wavelet, mode='constant', axis=0,
+                               fs=fs)
+    print(len(coeffs))
+    print(coeffs[2].shape)
+    print(f)
 
 
 if __name__ == "__main__":

@@ -46,7 +46,7 @@ def extract_pressure_te(
         verbose: bool = False
 ):
     '''
-    Extracts the pressure at the trailing edge from the data file.
+    Extracts the pressure fluctuations at the trailing edge from the data file.
 
     Parameters
     ----------
