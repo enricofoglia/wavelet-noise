@@ -135,10 +135,11 @@ def coherent_vortex_extraction(
 
     Returns
     -------
-    tuple
-        A tuple containing:
-        - signal: Coherent part of the signal.
-        - noise: Incoherent part of the signal.
+    CVEResults
+        A dataclass containing the results of the coherent vortex extraction,
+        including the number of iterations, final threshold, number of
+        coherent and incoherent coefficients, the extracted signal, noise,
+        and history of incoherent coefficients.
     """
     x = data - np.mean(data, axis=0)
     _, coef = dwt(x, wavelet=wavelet, mode="periodic", axis=0, type="numpy")
