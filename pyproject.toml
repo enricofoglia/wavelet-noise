@@ -23,7 +23,12 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "black>=25.1.0",
     "pyqt6>=6.9.1",
     "ruff>=0.12.3",
 ]
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.format]
+docstring-code-format = true

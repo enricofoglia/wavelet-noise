@@ -96,9 +96,38 @@ def cwt(
 
 
 def coherent_vortex_extraction(
-    data: np.array, wavelet: str, max_iter=20, tol: int = 1
+    data: np.array, wavelet: str, max_iter=20, tol: int = 1, **kwargs
 ) -> Tuple[np.array, np.array]:
+    """Separate the coherent and incoherent parts of a signal.
 
+    This function uses the discrete wavelet tranform and the adaptive
+     thresholding presented in Azzalini, A., Farge, M., & Schneider, K. (2005).
+     Appl. Comput. Harmon. Anal., 18(2), 177-185. It is based on the hypothesis
+     that the coherent part of the signal  can be accurately represented by a
+     small number of large wavelet coefficients, while the incoherent part is
+     represented by a large number of small wavelet coefficients.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Input signal data.
+    wavelet : str
+        Wavelet type to use for the DWT.
+    max_iter : int, optional
+        Maximum number of iterations for adaptive thresholding (default 20).
+    tol : int, optional
+        Tolerance for the number of coefficients to consider as coherent
+        (default 1).
+    **kwargs : dict, optional
+        Additional keyword arguments passed to the DWT function.
+
+    Returns
+    -------
+    tuple
+        A tuple containing:
+        - signal: Coherent part of the signal.
+        - noise: Incoherent part of the signal.
+    """
     x = data - np.mean(data, axis=0)
     _, coef = dwt(x, wavelet=wavelet, mode="periodic", axis=0, type="numpy")
     N, Ni = len(coef), len(coef)

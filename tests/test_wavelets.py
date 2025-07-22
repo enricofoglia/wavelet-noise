@@ -21,16 +21,14 @@ def test_chirp():
     chirp *= gaussian(t, 0.5, 0.2)
 
     freq = np.geomspace(2, 500, 150)
-    cw = wn.wavelet.cwt(chirp, freq, wavelet="cmor1.5-1.0", fs=fs,
-                        method="fft")
+    cw = wn.wavelet.cwt(chirp, freq, wavelet="cmor1.5-1.0", fs=fs, method="fft")
     # ==============================================
     #    Plot Scaleogram
     # ==============================================
     t_grid, f_grid = np.meshgrid(t, freq)
 
     fig, ax = plt.subplots()
-    sg = ax.pcolormesh(t_grid, f_grid, np.abs(cw), shading="nearest",
-                       cmap="bone")
+    sg = ax.pcolormesh(t_grid, f_grid, np.abs(cw), shading="nearest", cmap="bone")
     ax.set_yscale("log")
     ax.set_xlabel(r"$t$ [s]")
     ax.set_ylabel(r"$f$ [Hz]")
@@ -41,7 +39,7 @@ def test_chirp():
 def test_coherent_vortex_extraction():
     # Generate a sample signal with noise
     t = np.linspace(0, 1, 1000)
-    signal = np.sin(2 * np.pi * 5 * t) 
+    signal = np.sin(2 * np.pi * 5 * t)
     noise = np.random.normal(0, 0.1, len(t))
     noisy_signal = signal + noise
 
@@ -57,13 +55,10 @@ def test_coherent_vortex_extraction():
     fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
     axs[0].plot(t, noisy_signal, label="Noisy Signal")
     axs[1].plot(t, signal, label=r"Original Signal $f(t)$")
-    axs[1].plot(t, signal_extracted, "k--",
-                label=r"Denoised Signal $\tilde f(t)$")
-    axs[1].plot(t, err, label=r"Error $\vert f(t)-\tilde f(t)\vert$",
-                color='tab:red')
+    axs[1].plot(t, signal_extracted, "k--", label=r"Denoised Signal $\tilde f(t)$")
+    axs[1].plot(t, err, label=r"Error $\vert f(t)-\tilde f(t)\vert$", color="tab:red")
     axs[2].plot(t, noise, label=r"Noise $w(t)$")
-    axs[2].plot(t, noise_extracted, "k--", 
-                label=r"Extracted Noise $\tilde w(t)$")
+    axs[2].plot(t, noise_extracted, "k--", label=r"Extracted Noise $\tilde w(t)$")
 
     axs[2].set_xlabel(r"$t$")
     axs[0].set_ylabel(r"$f(t)+w(t)$")
