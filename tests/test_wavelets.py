@@ -1,6 +1,10 @@
+import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 import wavelet_noise as wn
+
+plt.style.use("../style.mplstyle")
 
 
 def test_chirp():
@@ -73,6 +77,52 @@ def test_coherent_vortex_extraction():
     plt.show()
 
 
+def test_cve_trailing_edge():
+    data_dir = "/home/daep/e.foglia/Documents/2A/13_gibbs/data"
+    data_file = os.path.join(data_dir, "SherFWHsolid1_p_raw_data_250.h5")
+
+    info_dict = wn.utils.get_data_info(data_file, verbose=False)
+    p_te = wn.utils.extract_pressure_te(data_file, 50, info_dict["N"], False)
+
+    # ==============================================
+    #    De-normalize the data
+    # ==============================================
+    rho_ref = 1.225  # experiments density [kg/m^3]
+    U_ref = 16  # experiments velocity [m/s]
+    cref = 0.1356  # airfoil chord [m]
+    p_dyn = rho_ref * U_ref**2  # dynamic pressure [Pa]
+    # p_ref = 2e-5        # Reference pressure in Pa
+
+    p_te *= p_dyn
+    info_dict["T_s"] *= cref / U_ref
+    info_dict["f_s"] *= U_ref / cref
+
+    # ==============================================
+    #    Basic information
+    # ==============================================
+    T = info_dict["T_s"]  # sample spacing
+    n_sens = p_te.shape[1]  # Number of sensors
+
+    signal = p_te[:, n_sens // 2]
+
+    denoised_signal, noise = wn.wavelet.coherent_vortex_extraction(
+        signal, wavelet="coif8", max_iter=20, tol=1
+    )
+    t = T * np.arange(len(signal))
+    fig, ax = plt.subplots()
+    ax.plot(t, signal, label="Signal")
+    ax.plot(t, denoised_signal, "--k", label="Denoised signal")
+    ax.plot(t, noise, color="tab:red", label="Noise")
+    ax.set_xlabel(r"$t$ [s]")
+    ax.set_ylabel("signal [Pa]")
+    ax.set_xlim([t[0], t[-1]])
+    ax.grid()
+    ax.legend()
+
+    plt.show()
+
+
 if __name__ == "__main__":
     test_chirp()
     test_coherent_vortex_extraction()
+    test_cve_trailing_edge()
