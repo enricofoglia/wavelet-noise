@@ -2,7 +2,6 @@ import numpy as np
 import scipy.signal as sg
 
 
-
 def spectrum(
         data,
         filter: bool = False,

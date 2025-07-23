@@ -7,4 +7,5 @@ wavelet_noise modules
 
    modules/wavelet
    modules/utils
+   modules/stats
 
