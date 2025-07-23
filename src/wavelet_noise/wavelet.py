@@ -8,9 +8,11 @@ from dataclasses import dataclass
 
 import pywt as pw
 
+
 @dataclass
 class CVEResults:
     """Results of the Coherent Vortex Extraction convergence."""
+
     iterations: int
     final_threshold: float
     num_coherent_coeffs: int
@@ -18,6 +20,7 @@ class CVEResults:
     signal: np.ndarray
     noise: np.ndarray
     incoherent_coeffs_history: list
+
 
 def dwt(
     data: np.ndarray,
@@ -58,8 +61,7 @@ def dwt(
     if level is None:
         level = pw.dwt_max_level(len(data), filter_len=wavelet)
 
-    freq = pw.scale2frequency(wavelet=wavelet,
-                              scale=2.0 ** np.arange(1, level - 1))
+    freq = pw.scale2frequency(wavelet=wavelet, scale=2.0 ** np.arange(1, level - 1))
     dw = pw.wavedec(data, wavelet=wavelet, mode=mode, level=level, axis=axis)
 
     if type == "numpy":
@@ -181,11 +183,11 @@ def coherent_vortex_extraction(
     results = CVEResults(
         iterations=it,
         final_threshold=T,
-        num_coherent_coeffs=N-Ni_new,
+        num_coherent_coeffs=N - Ni_new,
         num_incoherent_coeffs=Ni,
         signal=signal,
         noise=noise,
-        incoherent_coeffs_history=Ni_history
+        incoherent_coeffs_history=Ni_history,
     )
     return results
 
