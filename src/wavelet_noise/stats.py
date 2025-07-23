@@ -104,7 +104,7 @@ def coherence_function(
     reference = data[:, ref_index]  # Reference sensor (midspan)
     if filter:
         reference = _butter_bandpass_filter(
-            reference, flims[0], flims[1], fs, order=order)
+            reference, flims[0], flims[1], fs, order=order, form='sos')[0] #TODO: check if the filter correction is needed also for the coherence 
 
     gamma = []
 
