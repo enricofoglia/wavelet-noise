@@ -11,7 +11,7 @@ def test_spectrum():
     signal = np.sin(2 * np.pi * 50 * t) + 0.02* np.random.randn(10000)  
 
     fs = 1 / (t[1] - t[0])  # Sampling frequency
-    f, spp = stats.spectrum(signal[:, np.newaxis], fs=fs, nperseg=256, filter=False, flims=(0.1, 10.0),
+    f, spp = stats.spectrum(signal[:, np.newaxis], fs=fs, nperseg=256, filter=True, flims=(0.1, 100.0),
                             avg=1, axis=0)
     assert f.shape[0] > 0, "Frequency array should not be empty."
     assert spp.shape[0] > 0, "Power spectral density array should not be empty."

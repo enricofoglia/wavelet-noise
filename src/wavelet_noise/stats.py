@@ -43,8 +43,8 @@ def spectrum(
         Power spectral density of the input data.
     '''
     if filter:
-        filtered_data = _butter_bandpass_filter(
-            data, flims[0], flims[1], fs, order=order)
+        filtered_data, sos = _butter_bandpass_filter(
+            data, flims[0], flims[1], fs, order=order, form='sos')
     else:
         filtered_data = data
 
@@ -52,6 +52,12 @@ def spectrum(
 
     if spp.ndim > 1 and avg is not None:
         spp = np.mean(spp, axis=avg)
+
+    if filter:
+        # Correct the power spectral density for the filter response
+        _, h = sg.freqz_sos(sos, worN=f, fs=fs)  
+        gain = np.abs(h)**2 + 1e-12  # Power gain = |H(f)|^2
+        spp /= gain
 
     return f, spp
 
@@ -172,16 +178,16 @@ def coherence_length(
 import scipy.signal as sg
 
 
-def _butter_bandpass(lowcut, highcut, fs, order=5):
+def _butter_bandpass(lowcut, highcut, fs, order=5, output='sos'):
     # Butterworth bandpass filter design
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    b, a = sg.butter(order, [low, high], btype='band')
-    return b, a
+    out = sg.butter(order, [low, high], btype='band', output=output)
+    return out
 
 
-def _butter_bandpass_filter(data, lowcut, highcut, fs, order=2):
+def _butter_bandpass_filter(data, lowcut, highcut, fs, order=2, form='ba'):
     '''
     Filter the data using a Butterworth bandpass filter.
 
@@ -197,12 +203,20 @@ def _butter_bandpass_filter(data, lowcut, highcut, fs, order=2):
         Sampling frequency in Hz.
     order : int, optional
         Order of the filter. Default is 2.
+    form : str, optional
+        Form of the filter coefficients. Default is 'sos' (second-order sections).
 
     Returns
     -------
     np.ndarray
         Filtered data.
     '''
-    b, a = _butter_bandpass(lowcut, highcut, fs, order=order)
-    y = sg.lfilter(b, a, data)
-    return y
+    out = _butter_bandpass(lowcut, highcut, fs, order=order, output=form)
+    match form:
+        case "sos":
+            y = sg.sosfilt(out, data, axis=0)
+        case "ba":
+            y = sg.lfilter(out[0], out[1], data, axis=0)
+        case _:
+            raise ValueError("Invalid filter form. Use 'sos' or 'ba'.")
+    return y, out
