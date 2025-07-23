@@ -8,9 +8,11 @@ from dataclasses import dataclass
 
 import pywt as pw
 
+
 @dataclass
 class CVEResults:
     """Results of the Coherent Vortex Extraction convergence."""
+
     iterations: int
     final_threshold: float
     num_coherent_coeffs: int
@@ -18,6 +20,7 @@ class CVEResults:
     signal: np.ndarray
     noise: np.ndarray
     incoherent_coeffs_history: list
+
 
 def dwt(
     data: np.ndarray,
@@ -27,6 +30,7 @@ def dwt(
     fs: float = 1.0,
     axis: int = -1,
     type: str = "list",
+    return_approx: bool = True
 ):
     """
     Discrete Wavelet Transform (DWT) using PyWavelets. Also, returns the
@@ -48,6 +52,12 @@ def dwt(
     axis : int, optional
         Axis along which to compute the DWT (default -1, which is the last
          axis).
+    type : str, optional
+        Type of output ('list' for list of coefficients, 'numpy' for a
+        concatenated numpy array) (default 'list').
+    return_approx : bool, optional
+        If True, the approximation coefficients are included in the output
+        (default True).
 
     Returns
     -------
@@ -58,9 +68,11 @@ def dwt(
     if level is None:
         level = pw.dwt_max_level(len(data), filter_len=wavelet)
 
-    freq = pw.scale2frequency(wavelet=wavelet,
-                              scale=2.0 ** np.arange(1, level - 1))
+    freq = pw.scale2frequency(wavelet=wavelet, scale=2.0 ** np.arange(1, level - 1))
     dw = pw.wavedec(data, wavelet=wavelet, mode=mode, level=level, axis=axis)
+
+    if not return_approx:
+        dw = dw[1:]
 
     if type == "numpy":
         dw = _dwt2numpy(dw)
@@ -108,7 +120,7 @@ def cwt(
 
 
 def coherent_vortex_extraction(
-    data: np.array, wavelet: str, max_iter=20, tol: int = 1, **kwargs
+    data: np.array, wavelet: str, max_iter=20, tol: int = 1, use_approx: bool=True,  **kwargs
 ) -> Tuple[np.array, np.array]:
     """Separate the coherent and incoherent parts of a signal.
 
@@ -130,6 +142,9 @@ def coherent_vortex_extraction(
     tol : int, optional
         Tolerance for the number of coefficients to consider as coherent
         (default 1).
+    use_approx : bool, optional
+        If True, the approximation coefficients are included in the
+        thresholding process (default True).
     **kwargs : dict, optional
         Additional keyword arguments passed to the DWT function.
 
@@ -140,9 +155,14 @@ def coherent_vortex_extraction(
         including the number of iterations, final threshold, number of
         coherent and incoherent coefficients, the extracted signal, noise,
         and history of incoherent coefficients.
+
+        
+    .. warning::
+        This implementation of the Coherent Vortex Extraction thresholds both the detail and the approximation coefficients of the wavelet transform. In our tests, including the approximation or not did not make much of a difference in terms of the performance of the algorithm, but discretion is advised if unexpected results are obtained.
     """
     x = data - np.mean(data, axis=0)
-    _, coef = dwt(x, wavelet=wavelet, mode="periodic", axis=0, type="numpy")
+    _, coef = dwt(x, wavelet=wavelet, mode="periodic", axis=0, type="numpy",
+                  return_approx=use_approx)
     N, Ni = len(coef), len(coef)
     T = (2.0 * np.var(coef) * np.log(N)) ** 0.5
 
@@ -181,11 +201,11 @@ def coherent_vortex_extraction(
     results = CVEResults(
         iterations=it,
         final_threshold=T,
-        num_coherent_coeffs=N-Ni_new,
+        num_coherent_coeffs=N - Ni_new,
         num_incoherent_coeffs=Ni,
         signal=signal,
         noise=noise,
-        incoherent_coeffs_history=Ni_history
+        incoherent_coeffs_history=Ni_history,
     )
     return results
 

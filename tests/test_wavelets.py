@@ -1,6 +1,7 @@
 import os
 
 from tqdm import tqdm
+from time import time
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,30 +45,44 @@ def test_chirp():
 
 def test_coherent_vortex_extraction():
     t = np.linspace(0, 1, 1000)
-    
+
     err_list = []
-    for i in tqdm(range(10),
-                  desc="test_coherent_vortex_extraction",
-                  ncols=120):
+    time_list = []
+    for i in tqdm(range(10), desc="test_coherent_vortex_extraction", ncols=120):
         signal = np.sin(2 * np.pi * 5 * t)
         noise = np.random.normal(0, 0.1, len(t))
         noisy_signal = signal + noise
 
         wavelet = "coif8"
+        tic = time()
         result = wn.wavelet.coherent_vortex_extraction(
             noisy_signal, wavelet=wavelet, max_iter=20, tol=1
         )
+        toc = time()
+        time_list.append(toc - tic)
 
         err_list.append(np.abs(signal - result.signal))
 
     err_avg = np.mean(np.array(err_list), axis=1)
-    print(r"Mean error in signal extraction: {0:.4f} +- {1:.4f}".format(err_avg.mean(), err_avg.std()))
+    time_array = np.array(time_list)
+    print(
+        r"Mean error in signal extraction: {0:.4f} +- {1:.4f}".format(
+            err_avg.mean(), err_avg.std()
+        )
+    )
+    print(
+        r"Mean runtime for signal extraction: {0:.4f} +- {1:.4f}".format(
+            time_array.mean(), time_array.std()
+        )
+    )
 
     fig, axs = plt.subplots(3, 1, figsize=(10, 6), sharex=True)
     axs[0].plot(t, noisy_signal, label="Noisy Signal")
     axs[1].plot(t, signal, label=r"Original Signal $f(t)$")
     axs[1].plot(t, result.signal, "k--", label=r"Denoised Signal $\tilde f(t)$")
-    axs[1].plot(t, err_list[-1], label=r"Error $\vert f(t)-\tilde f(t)\vert$", color="tab:red")
+    axs[1].plot(
+        t, err_list[-1], label=r"Error $\vert f(t)-\tilde f(t)\vert$", color="tab:red"
+    )
     axs[2].plot(t, noise, label=r"Noise $w(t)$")
     axs[2].plot(t, result.noise, "k--", label=r"Extracted Noise $\tilde w(t)$")
 
@@ -121,12 +136,16 @@ def test_cve_trailing_edge():
     n_sens = p_te.shape[1]  # Number of sensors
 
     signal = p_te[:, n_sens // 2]
-
+    tic = time()
     result = wn.wavelet.coherent_vortex_extraction(
         signal, wavelet="coif8", max_iter=20, tol=1
     )
+    toc = time()
+    print(
+        r"Runtime for coherent vortex extraction: {0:.4f} s".format(toc - tic)
+    )
     t = T * np.arange(len(signal))
-    fig, ax = plt.subplots(figsize=(12,4))
+    fig, ax = plt.subplots(figsize=(12, 4))
     ax.plot(t, signal, label="Signal")
     ax.plot(t, result.signal, "--k", label="Denoised signal")
     ax.plot(t, result.noise, color="tab:red", label="Noise")
