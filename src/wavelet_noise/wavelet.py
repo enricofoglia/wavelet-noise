@@ -125,11 +125,11 @@ def coherent_vortex_extraction(
     """Separate the coherent and incoherent parts of a signal.
 
     This function uses the discrete wavelet tranform and the adaptive
-     thresholding presented in Azzalini, A., Farge, M., & Schneider, K. (2005).
-     Appl. Comput. Harmon. Anal., 18(2), 177-185. It is based on the hypothesis
-     that the coherent part of the signal  can be accurately represented by a
-     small number of large wavelet coefficients, while the incoherent part is
-     represented by a large number of small wavelet coefficients.
+    thresholding presented in Azzalini, A., Farge, M., & Schneider, K. (2005).
+    Appl. Comput. Harmon. Anal., 18(2), 177-185. It is based on the hypothesis
+    that the coherent part of the signal  can be accurately represented by a
+    small number of large wavelet coefficients, while the incoherent part is
+    represented by a large number of small wavelet coefficients.
 
     Parameters
     ----------
