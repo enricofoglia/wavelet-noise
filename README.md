@@ -2,7 +2,7 @@
 Wavelet transform post-processing for airfoil trailing-edge noise
 
 ## Building the doc
-Once the code has been installed it is possible to build the documentation by:
+Once the code has been installed it is possible to build the documentation by: us.
 
 ```
 cd docs
