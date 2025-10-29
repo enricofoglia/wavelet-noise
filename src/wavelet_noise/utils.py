@@ -20,9 +20,8 @@ class Case:
         np.ndarray
     )  #: synchronized remote microphone probes data (wall pressure fluctuations)
     time: np.ndarray  #: time vector in seconds
-    fs: float #: sampling frequency in Hz
+    fs: float  #: sampling frequency in Hz
     notape: bool = False  #: flag to indicate if the case is a no-tape case
-
 
 
 def _check_file_exists(file_path: os.PathLike) -> os.PathLike:
@@ -230,5 +229,5 @@ def read_beamforming_case(file_path: os.PathLike) -> Case:
         rmp=np.array(rmp).T,
         time=np.array(time),
         notape=metadata["notape"],
-        fs=fs
+        fs=fs,
     )

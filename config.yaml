@@ -3,3 +3,5 @@ data_dir: "/home/daep/e.foglia/Documents/3A/07_fluids_sound/02_data/01_cd_isae_b
 out_dir: "./out"
 case_name: "CD-ISAE-0deg-40pr-rmp22-26-90s-1.h5"
 p_ref: 2.0e-5
+sound_speed: 343.0
+microphone_distance: 1.45
