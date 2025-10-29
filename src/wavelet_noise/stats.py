@@ -166,4 +166,3 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=2, form="ba"):
         case _:
             raise ValueError("Invalid filter form. Use 'sos' or 'ba'.")
     return y, out
-

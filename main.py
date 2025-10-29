@@ -90,22 +90,37 @@ def main():
     # N = len(f)
     # correlation_hydro = fft.ifft(csd_hydro).real[:N//2]
     # time_lags = fft.fftfreq(len(csd_hydro), d=f[1]-f[0])[:N//2]
-    correlation_hydro = sg.correlate(signal_micro, cve.signal, mode="full") / len(signal_micro)**2
-    correlation_signal = sg.correlate(signal_micro, signal, mode="full") / len(signal_micro)**2
-    correlation_noise = sg.correlate(signal_micro, cve.noise, mode="full") / len(signal_micro)**2
+    correlation_hydro = (
+        sg.correlate(signal_micro, cve.signal, mode="full") / len(signal_micro) ** 2
+    )
+    correlation_signal = (
+        sg.correlate(signal_micro, signal, mode="full") / len(signal_micro) ** 2
+    )
+    correlation_noise = (
+        sg.correlate(signal_micro, cve.noise, mode="full") / len(signal_micro) ** 2
+    )
 
-    time_lags = sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full") / data.fs
+    time_lags = (
+        sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full") / data.fs
+    )
     c0 = config["sound_speed"]
     L = config["microphone_distance"]
-    error_L = 0.05 # 1 cm error in distance measurement
+    error_L = 0.05  # 1 cm error in distance measurement
     p_ref = config.get("p_ref", 20e-6)
 
     fig, ax = plt.subplots()
-    ax.fill_betweenx([0,max(np.abs(correlation_hydro))],(L+error_L)/c0, (L-error_L)/c0, color="tomato", alpha=0.3, label=r"Error on $t^*=L/c_0$")
-    ax.axvline(L/c0, color="tomato", ls="--", label=r"$t^*=L/c_0$")
-    for i in range(2,11):
-        ax.axvline(i*L/c0, color="tomato", ls="--")
-    ax.plot(time_lags, np.abs(correlation_hydro)/p_ref**2)
+    ax.fill_betweenx(
+        [0, max(np.abs(correlation_hydro))],
+        (L + error_L) / c0,
+        (L - error_L) / c0,
+        color="tomato",
+        alpha=0.3,
+        label=r"Error on $t^*=L/c_0$",
+    )
+    ax.axvline(L / c0, color="tomato", ls="--", label=r"$t^*=L/c_0$")
+    for i in range(2, 11):
+        ax.axvline(i * L / c0, color="tomato", ls="--")
+    ax.plot(time_lags, np.abs(correlation_hydro) / p_ref**2)
 
     ax.set_xlabel("Time lag [s]")
     ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
@@ -119,9 +134,19 @@ def main():
     plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.png"))
 
     fig, ax = plt.subplots()
-    ax.plot(time_lags, np.abs(correlation_signal)/p_ref**2, label="Original signal")
-    ax.plot(time_lags, np.abs(correlation_hydro)/p_ref**2, "--", label="Hydrodynamic component")
-    ax.plot(time_lags, np.abs(correlation_noise)/p_ref**2, label="Noise component", linewidth=3)
+    ax.plot(time_lags, np.abs(correlation_signal) / p_ref**2, label="Original signal")
+    ax.plot(
+        time_lags,
+        np.abs(correlation_hydro) / p_ref**2,
+        "--",
+        label="Hydrodynamic component",
+    )
+    ax.plot(
+        time_lags,
+        np.abs(correlation_noise) / p_ref**2,
+        label="Noise component",
+        linewidth=3,
+    )
     ax.set_xlabel("Time lag [s]")
     ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
     ax.set_title("Cross-correlation between microphone and hydrodynamic component")
@@ -136,32 +161,38 @@ def main():
     correlation = []
     with progress_bar as pb:
         for micro in pb.track(data.microphones.T):
-            correlation.append(np.abs(sg.correlate(micro, cve.signal, mode="full")) / len(signal_micro)**2)
+            correlation.append(
+                np.abs(sg.correlate(micro, cve.signal, mode="full"))
+                / len(signal_micro) ** 2
+            )
     correlation = np.array(correlation)
     avg_correlation = np.mean(correlation, axis=0)
     std_correlation = np.std(correlation, axis=0)
     fig, ax = plt.subplots()
-    
-    ax.plot(time_lags, avg_correlation/p_ref**2, label="Average cross-correlation")
+
+    ax.plot(time_lags, avg_correlation / p_ref**2, label="Average cross-correlation")
 
     ax.fill_between(
         time_lags,
-        (avg_correlation - 1*std_correlation)/p_ref**2,
-        (avg_correlation + 1*std_correlation)/p_ref**2,
+        (avg_correlation - 1 * std_correlation) / p_ref**2,
+        (avg_correlation + 1 * std_correlation) / p_ref**2,
         alpha=0.5,
         label=r"$\pm \sigma$",
     )
     ax.set_xlabel("Time lag [s]")
     ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
-    ax.set_title("Average cross-correlation between microphones and hydrodynamic component")
+    ax.set_title(
+        "Average cross-correlation between microphones and hydrodynamic component"
+    )
     ax.grid(True, which="both", ls="--", lw=0.5)
     # ax.set_xscale("log")
     ax.set_xlim(-0.025, 0.025)
     ax.set_ylim(bottom=0.0)
     ax.legend()
-    plt.savefig(os.path.join(config["out_dir"], "correlation_hydro_avg.png"), bbox_inches="tight")
-
-
+    plt.savefig(
+        os.path.join(config["out_dir"], "correlation_hydro_avg.png"),
+        bbox_inches="tight",
+    )
 
     # fig, ax = plt.subplots()
     # ax.plot(f, csd_hydro.real, label="Real part")
@@ -172,7 +203,6 @@ def main():
     # ax.grid(True, which="both", ls="--", lw=0.5)
     # ax.legend()
     # plt.savefig(os.path.join(config["out_dir"], "csd_hydro.png"))
-
 
     fig, ax = plt.subplots()
     ax.plot(cve.incoherent_coeffs_history, "-o")
