@@ -208,3 +208,6 @@ __marimo__/
 
 # test data files
 tests/data/
+
+# output directory
+out/

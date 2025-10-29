@@ -5,19 +5,19 @@ import pytest
 def test_parse_beamforming_name():
     filename = "CD-ISAE-5deg-53pr-rmp2-6-notape-1.h5"
     params = utils.parse_beamforming_name(filename)
-    assert params["angle_of_attack"] == 5
+    assert params["aoa"] == 5
     assert (
-        params["wind_speed"] == 53 * 1.14
+        params["speed"] == 53 * 1.14
     )  # TODO: do I want to hardcode the conversion?
-    assert params["rmp_numbers"] == utils.RMP_CONVERT["2-6"]
-    assert len(params["rmp_numbers"]) == 4
+    assert params["rmp_idx"] == utils.RMP_CONVERT["2-6"]
+    assert len(params["rmp_idx"]) == 4
     assert params["notape"] == True
 
     filename = "CD-ISAE-0deg-14pr-rmp2-6-90s-1.h5"
     params = utils.parse_beamforming_name(filename)
-    assert params["angle_of_attack"] == 0
-    assert params["wind_speed"] == 14 * utils.VELOCITY_FACTOR
-    assert params["rmp_numbers"] == utils.RMP_CONVERT["2-6"]
+    assert params["aoa"] == 0
+    assert params["speed"] == 14 * utils.VELOCITY_FACTOR
+    assert params["rmp_idx"] == utils.RMP_CONVERT["2-6"]
     assert params["notape"] == False
 
     wrong_filename = "invalid-filename.h5"
@@ -39,3 +39,4 @@ def test_beamforming_case():
     assert case.microphones.shape[0] == len(case.time)
     assert case.rmp.shape[0] == len(case.time)
     assert case.rmp.shape[1] == len(case.rmp_idx)
+    assert case.fs == 1/(case.time[1] - case.time[0])

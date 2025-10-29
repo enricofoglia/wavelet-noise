@@ -20,7 +20,9 @@ class Case:
         np.ndarray
     )  #: synchronized remote microphone probes data (wall pressure fluctuations)
     time: np.ndarray  #: time vector in seconds
+    fs: float #: sampling frequency in Hz
     notape: bool = False  #: flag to indicate if the case is a no-tape case
+
 
 
 def _check_file_exists(file_path: os.PathLike) -> os.PathLike:
@@ -191,9 +193,9 @@ def parse_beamforming_name(file_name):
     notape = "notape" in file_name
 
     return {
-        "wind_speed": wind_speed,
-        "angle_of_attack": angle_of_attack,
-        "rmp_numbers": rmp_numbers,
+        "speed": wind_speed,
+        "aoa": angle_of_attack,
+        "rmp_idx": rmp_numbers,
         "notape": notape,
     }
 
@@ -211,19 +213,22 @@ def read_beamforming_case(file_path: os.PathLike) -> Case:
         time = group[dataset_names[0]][:]
         microphones = [
             group[data_name][:]
-            for data_name in dataset_names[1 : -len(metadata["rmp_numbers"])]
+            for data_name in dataset_names[1 : -len(metadata["rmp_idx"])]
         ]
         rmp = [
             group[data_name][:]
-            for data_name in dataset_names[-len(metadata["rmp_numbers"]) :]
+            for data_name in dataset_names[-len(metadata["rmp_idx"]) :]
         ]
+        dt = group[dataset_names[0]].attrs["ChannelInformationSamplingPeriod"]
+        fs = 1 / dt
 
     return Case(
-        speed=metadata["wind_speed"],
-        aoa=metadata["angle_of_attack"],
-        rmp_idx=metadata["rmp_numbers"],
+        speed=metadata["speed"],
+        aoa=metadata["aoa"],
+        rmp_idx=metadata["rmp_idx"],
         microphones=np.array(microphones).T,
         rmp=np.array(rmp).T,
         time=np.array(time),
         notape=metadata["notape"],
+        fs=fs
     )

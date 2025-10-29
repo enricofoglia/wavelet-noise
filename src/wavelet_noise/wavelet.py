@@ -203,10 +203,10 @@ def coherent_vortex_extraction(
             )
             return np.array([]), np.array([])
 
-    _, coef_i = dwt(x, wavelet=wavelet, mode="periodic", axis=0, type="list")
+    _, coef_i = dwt(data, wavelet=wavelet, mode="periodic", axis=0, type="list")
     coef_i[1:] = [np.where(np.abs(c) < T, c, 0.0) for c in coef_i[1:]]
     coef_i[0] = np.zeros_like(coef_i[0])
-    noise = pw.waverec(coef_i, wavelet=wavelet, mode="constant", axis=0)
+    noise = pw.waverec(coef_i, wavelet=wavelet, mode="periodic", axis=0)
     signal = data - noise
 
     results = CVEResults(

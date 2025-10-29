@@ -42,7 +42,7 @@ def spectrum(
         Power spectral density of the input data.
     """
     if filter:
-        filtered_data, sos = _butter_bandpass_filter(
+        filtered_data, sos = butter_bandpass_filter(
             data, flims[0], flims[1], fs, order=order, form="sos"
         )
     else:
@@ -103,7 +103,7 @@ def coherence_function(
 
     reference = data[:, ref_index]  # Reference sensor (midspan)
     if filter:
-        reference = _butter_bandpass_filter(
+        reference = butter_bandpass_filter(
             reference, flims[0], flims[1], fs, order=order, form="sos"
         )[0]  # TODO: check if the filter correction is needed also for the coherence
 
@@ -112,68 +112,13 @@ def coherence_function(
     for i in range(data.shape[1]):
         fi = data[:, i]  # Current sensor data
         if filter:
-            fi = _butter_bandpass_filter(fi, flims[0], flims[1], fs, order=order)
+            fi = butter_bandpass_filter(fi, flims[0], flims[1], fs, order=order)
         f, coh = sg.coherence(reference, fi, fs=fs, **kwargs)
         gamma.append(coh)
 
     gamma = np.array(gamma)
 
     return f, gamma
-
-
-def coherence_length(
-    data: np.ndarray,
-    z: np.ndarray,
-    ref_index: int = 0,
-    filter: bool = False,
-    flims: tuple = (0.0, 1.0),
-    fs: float = 1.0,
-    order: int = 2,
-    **kwargs,
-):
-    """
-    Compute the coherence function for the input data.
-
-    Parameters
-    ----------
-    data : np.ndarray
-        Input data array where each column represents a sensor.
-    z : np.ndarray
-        Array of sensor indices or positions corresponding to the data columns.
-    ref_index : int, optional
-        Index of the reference sensor in the data array. Default is 0.
-    filter : bool, optional
-        If True, apply a bandpass filter to the data before computing the
-           coherence. Default is False.
-    flims : tuple, optional
-        Frequency limits for the bandpass filter (low, high) in Hz. Default is
-           (0.0, 1.0).
-    fs : float, optional
-        Sampling frequency in Hz. Default is 1.0.
-    order : int, optional
-        Order of the Butterworth filter. Default is 2.
-    **kwargs : dict, optional
-        Additional keyword arguments passed to `scipy.signal.coherence`.
-
-    Returns
-    -------
-    f : np.ndarray
-        Frequencies at which the coherence is computed.
-    lz : np.ndarray
-        Coherence length at all frequencies.
-    """
-    f, gamma = coherence_function(
-        data,
-        ref_index=ref_index,
-        filter=filter,
-        flims=flims,
-        fs=fs,
-        order=order,
-        **kwargs,
-    )
-
-    lz = np.trapz(np.sqrt(gamma), x=z, axis=0)  # Coherence length
-    return f, lz
 
 
 import scipy.signal as sg
@@ -188,7 +133,7 @@ def _butter_bandpass(lowcut, highcut, fs, order=5, output="sos"):
     return out
 
 
-def _butter_bandpass_filter(data, lowcut, highcut, fs, order=2, form="ba"):
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=2, form="ba"):
     """
     Filter the data using a Butterworth bandpass filter.
 
@@ -221,3 +166,5 @@ def _butter_bandpass_filter(data, lowcut, highcut, fs, order=2, form="ba"):
         case _:
             raise ValueError("Invalid filter form. Use 'sos' or 'ba'.")
     return y, out
+
+
