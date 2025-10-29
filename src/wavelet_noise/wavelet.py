@@ -30,7 +30,7 @@ def dwt(
     fs: float = 1.0,
     axis: int = -1,
     type: str = "list",
-    return_approx: bool = True
+    return_approx: bool = True,
 ):
     """
     Discrete Wavelet Transform (DWT) using PyWavelets. Also, returns the
@@ -120,7 +120,12 @@ def cwt(
 
 
 def coherent_vortex_extraction(
-    data: np.array, wavelet: str, max_iter=20, tol: int = 1, use_approx: bool=True,  **kwargs
+    data: np.array,
+    wavelet: str,
+    max_iter=20,
+    tol: int = 1,
+    use_approx: bool = True,
+    **kwargs,
 ) -> Tuple[np.array, np.array]:
     """Separate the coherent and incoherent parts of a signal.
 
@@ -156,13 +161,19 @@ def coherent_vortex_extraction(
         coherent and incoherent coefficients, the extracted signal, noise,
         and history of incoherent coefficients.
 
-        
+
     .. warning::
         This implementation of the Coherent Vortex Extraction thresholds both the detail and the approximation coefficients of the wavelet transform. In our tests, including the approximation or not did not make much of a difference in terms of the performance of the algorithm, but discretion is advised if unexpected results are obtained.
     """
     x = data - np.mean(data, axis=0)
-    _, coef = dwt(x, wavelet=wavelet, mode="periodic", axis=0, type="numpy",
-                  return_approx=use_approx)
+    _, coef = dwt(
+        x,
+        wavelet=wavelet,
+        mode="periodic",
+        axis=0,
+        type="numpy",
+        return_approx=use_approx,
+    )
     N, Ni = len(coef), len(coef)
     T = (2.0 * np.var(coef) * np.log(N)) ** 0.5
 

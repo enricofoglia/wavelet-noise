@@ -141,9 +141,7 @@ def test_cve_trailing_edge():
         signal, wavelet="coif8", max_iter=20, tol=1
     )
     toc = time()
-    print(
-        r"Runtime for coherent vortex extraction: {0:.4f} s".format(toc - tic)
-    )
+    print(r"Runtime for coherent vortex extraction: {0:.4f} s".format(toc - tic))
     t = T * np.arange(len(signal))
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.plot(t, signal, label="Signal")
