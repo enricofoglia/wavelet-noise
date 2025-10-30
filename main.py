@@ -5,7 +5,7 @@ import yaml
 import numpy as np
 
 import scipy.signal as sg
-import scipy.fft as fft
+import scipy.stats as stats
 
 import matplotlib.pyplot as plt
 import wavelet_noise as wn
@@ -82,14 +82,6 @@ def main():
     _, coherence_noise = sg.coherence(signal_micro, cve.noise, **welch_kwargs)
     _, coherence_signal = sg.coherence(signal_micro, cve.signal, **welch_kwargs)
 
-    csd_hydro = sg.csd(signal_micro, cve.signal, **welch_kwargs)[1]
-
-    print(f"lowest frequency : {f[0]}")
-
-    # csd_hydro = np.concatenate([csd_hydro[0][np.newaxis], csd_hydro[1:], csd_hydro[1::-1].conj()])
-    # N = len(f)
-    # correlation_hydro = fft.ifft(csd_hydro).real[:N//2]
-    # time_lags = fft.fftfreq(len(csd_hydro), d=f[1]-f[0])[:N//2]
     correlation_hydro = (
         sg.correlate(signal_micro, cve.signal, mode="full") / len(signal_micro) ** 2
     )
@@ -130,7 +122,7 @@ def main():
     ax.set_xlim(-0.025, 0.025)
 
     ax.set_ylim(bottom=0.0)
-    ax.legend()
+    ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.png"))
 
     fig, ax = plt.subplots()
@@ -188,21 +180,12 @@ def main():
     # ax.set_xscale("log")
     ax.set_xlim(-0.025, 0.025)
     ax.set_ylim(bottom=0.0)
-    ax.legend()
+    ax.legend(loc="upper right")
     plt.savefig(
         os.path.join(config["out_dir"], "correlation_hydro_avg.png"),
         bbox_inches="tight",
     )
 
-    # fig, ax = plt.subplots()
-    # ax.plot(f, csd_hydro.real, label="Real part")
-    # ax.plot(f, csd_hydro.imag, label="Imaginary part")
-    # ax.set_xlabel("Frequency [Hz]")
-    # ax.set_ylabel("CSD")
-    # ax.set_title("Cross-Spectral Density between microphone and hydrodynamic component")
-    # ax.grid(True, which="both", ls="--", lw=0.5)
-    # ax.legend()
-    # plt.savefig(os.path.join(config["out_dir"], "csd_hydro.png"))
 
     fig, ax = plt.subplots()
     ax.plot(cve.incoherent_coeffs_history, "-o")
@@ -244,7 +227,7 @@ def main():
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
-    ax.legend()
+    ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "psd_comparison.png"))
 
     nsamples = 1000
@@ -266,19 +249,8 @@ def main():
     ax.set_xlabel("Time [s]")
     ax.set_ylabel("Pressure fluctuation [Pa]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.legend()
+    ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "time_signal_comparison.png"))
-
-    def standard_gaussian(x):
-        return 1.0 / np.sqrt(2.0 * np.pi) * np.exp(-0.5 * x**2)
-
-    def standard_logistic(x):
-        return (
-            np.pi
-            / np.sqrt(3)
-            * np.exp(-x * np.pi / np.sqrt(3))
-            / (1.0 + np.exp(-x * np.pi / np.sqrt(3))) ** 2
-        )
 
     fig, ax = plt.subplots()
     ax.hist(
@@ -310,7 +282,7 @@ def main():
     )
     ax.plot(
         np.linspace(-10.0, 10.0, 250),
-        standard_logistic(np.linspace(-10.0, 10.0, 250)),
+        stats.logistic.pdf(np.linspace(-10.0, 10.0, 250), scale=np.sqrt(3) / np.pi),
         "--",
         color="tomato",
         label="Standard Logistic",
@@ -341,7 +313,7 @@ def main():
     ax.set_xlim(20, 20e3)
     ax.set_ylim(0.0, 1.0)
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.legend()
+    ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.png"))
 
 
