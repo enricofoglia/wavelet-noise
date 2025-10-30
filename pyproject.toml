@@ -12,6 +12,8 @@ dependencies = [
     "matplotlib>=3.10.3",
     "numpy>=2.3.1",
     "pywavelets>=1.8.0",
+    "pyyaml>=6.0.3",
+    "rich>=14.2.0",
     "scipy>=1.16.0",
     "tqdm>=4.67.1",
 ]
@@ -26,6 +28,7 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pyqt6>=6.9.1",
+    "pytest>=8.4.2",
     "ruff>=0.12.3",
 ]
 
