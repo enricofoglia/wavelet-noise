@@ -1,70 +1,348 @@
 import os
 
+import yaml
+
 import numpy as np
+
+import scipy.signal as sg
+import scipy.fft as fft
+
 import matplotlib.pyplot as plt
 import wavelet_noise as wn
 
-plt.style.use("style.mplstyle")
+from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
+    Progress,
+    TextColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+)
+
+# Define custom progress bar
+progress_bar = Progress(
+    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+    BarColumn(),
+    MofNCompleteColumn(),
+    TextColumn("•"),
+    TimeElapsedColumn(),
+    TextColumn("•"),
+    TimeRemainingColumn(),
+)
+
+
+# plt.style.use("style.mplstyle")
+plt.style.use("dark_background")
+plt.rcParams.update(
+    {
+        "lines.linewidth": 2,
+        "savefig.dpi": 300,
+    }
+)
 
 
 def main():
-    data_dir = "/home/daep/e.foglia/Documents/2A/13_gibbs/data"
-    data_file = os.path.join(data_dir, "SherFWHsolid1_p_raw_data_250.h5")
+    with open("config.yaml", "r") as f:
+        config = yaml.load(f, Loader=yaml.Loader)
 
-    info_dict = wn.utils.get_data_info(data_file, verbose=False)
-    p_te = wn.utils.extract_pressure_te(data_file, 50, info_dict["N"], False)
+    data = wn.utils.read_beamforming_case(
+        os.path.join(config["data_dir"], config["case_name"])
+    )
 
-    # ==============================================
-    #    De-normalize the data
-    # ==============================================
-    rho_ref = 1.225  # experiments density [kg/m^3]
-    U_ref = 16  # experiments velocity [m/s]
-    cref = 0.1356  # airfoil chord [m]
-    p_dyn = rho_ref * U_ref**2  # dynamic pressure [Pa]
-    # p_ref = 2e-5        # Reference pressure in Pa
+    signal = data.rmp[:, 0]
 
-    p_te *= p_dyn
-    info_dict["T_s"] *= cref / U_ref
-    info_dict["f_s"] *= U_ref / cref
+    welch_kwargs = {
+        "fs": data.fs,
+        "nperseg": signal.shape[0] // 2**6,
+        "noverlap": signal.shape[0] // 2**7,
+        "window": "hamming",
+    }
 
-    # ==============================================
-    #    Basic information
-    # ==============================================
-    N = p_te.shape[0]  # Number of sample points
-    T = info_dict["T_s"]  # sample spacing
-    fs = info_dict["f_s"]  # Sampling frequency
-    n_sens = p_te.shape[1]  # Number of sensors
+    f, psd = sg.welch(signal, **welch_kwargs)
 
-    # ==============================================
-    #    Wavelet Transform
-    # ==============================================
-    idx = n_sens // 2
-    freq = np.logspace(np.log10(20), np.log10(20e3), 150)
-    cw = wn.wavelet.cwt(p_te[:, idx], freq, wavelet="cmor2.5-1.5", fs=fs, method="fft")
+    cve = wn.wavelet.coherent_vortex_extraction(
+        signal, wavelet="coif8", max_iter=100, tol=1, use_approx=False
+    )
 
-    # ==============================================
-    #    Plot Scaleogram
-    # ==============================================
+    print(f"Number of iterations: {cve.iterations}")
+    print(f"Final threshold: {cve.final_threshold:.4e}")
+    print(f"Number of coherent coefficients: {cve.num_coherent_coeffs}")
+    print(f"Number of incoherent coefficients: {cve.num_incoherent_coeffs}")
+    print(
+        f"Fraction of coherent coefficients: {cve.num_coherent_coeffs / (cve.num_coherent_coeffs + cve.num_incoherent_coeffs):.2%}"
+    )
 
-    t = np.arange(N) * T
-    t_grid, f_grid = np.meshgrid(t, freq)
+    psd_noise = sg.welch(cve.noise, **welch_kwargs)[1]
+
+    psd_hydro = sg.welch(cve.signal, **welch_kwargs)[1]
+
+    signal_micro = data.microphones[:, 29]
+
+    f, coherence_hydro = sg.coherence(signal_micro, cve.signal, **welch_kwargs)
+    _, coherence_noise = sg.coherence(signal_micro, cve.noise, **welch_kwargs)
+    _, coherence_signal = sg.coherence(signal_micro, cve.signal, **welch_kwargs)
+
+    csd_hydro = sg.csd(signal_micro, cve.signal, **welch_kwargs)[1]
+
+    print(f"lowest frequency : {f[0]}")
+
+    # csd_hydro = np.concatenate([csd_hydro[0][np.newaxis], csd_hydro[1:], csd_hydro[1::-1].conj()])
+    # N = len(f)
+    # correlation_hydro = fft.ifft(csd_hydro).real[:N//2]
+    # time_lags = fft.fftfreq(len(csd_hydro), d=f[1]-f[0])[:N//2]
+    correlation_hydro = (
+        sg.correlate(signal_micro, cve.signal, mode="full") / len(signal_micro) ** 2
+    )
+    correlation_signal = (
+        sg.correlate(signal_micro, signal, mode="full") / len(signal_micro) ** 2
+    )
+    correlation_noise = (
+        sg.correlate(signal_micro, cve.noise, mode="full") / len(signal_micro) ** 2
+    )
+
+    time_lags = (
+        sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full") / data.fs
+    )
+    c0 = config["sound_speed"]
+    L = config["microphone_distance"]
+    error_L = 0.05  # 1 cm error in distance measurement
+    p_ref = config.get("p_ref", 20e-6)
 
     fig, ax = plt.subplots()
-    sg = ax.pcolormesh(t_grid, f_grid, np.abs(cw), shading="nearest", cmap="bone")
-    ax.set_yscale("log")
-    ax.set_xlabel(r"$t$ [s]")
-    ax.set_ylabel(r"$f$ [Hz]")
-    fig.colorbar(sg, ax=ax, label=r"$\vert \mathcal{W}[f] \vert$")
-    plt.show()
+    ax.fill_betweenx(
+        [0, max(np.abs(correlation_hydro))],
+        (L + error_L) / c0,
+        (L - error_L) / c0,
+        color="tomato",
+        alpha=0.3,
+        label=r"Error on $t^*=L/c_0$",
+    )
+    ax.axvline(L / c0, color="tomato", ls="--", label=r"$t^*=L/c_0$")
+    for i in range(2, 11):
+        ax.axvline(i * L / c0, color="tomato", ls="--")
+    ax.plot(time_lags, np.abs(correlation_hydro) / p_ref**2)
 
-    # ==============================================
-    #  DWT
-    # ==============================================
-    wavelet = "coif4"
-    f, coeffs = wn.wavelet.dwt(p_te, wavelet=wavelet, mode="constant", axis=0, fs=fs)
-    print(len(coeffs))
-    print(coeffs[2].shape)
-    print(f)
+    ax.set_xlabel("Time lag [s]")
+    ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
+    ax.set_title("Cross-correlation between microphone and hydrodynamic component")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    # ax.set_xscale("log")
+    ax.set_xlim(-0.025, 0.025)
+
+    ax.set_ylim(bottom=0.0)
+    ax.legend()
+    plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.png"))
+
+    fig, ax = plt.subplots()
+    ax.plot(time_lags, np.abs(correlation_signal) / p_ref**2, label="Original signal")
+    ax.plot(
+        time_lags,
+        np.abs(correlation_hydro) / p_ref**2,
+        "--",
+        label="Hydrodynamic component",
+    )
+    ax.plot(
+        time_lags,
+        np.abs(correlation_noise) / p_ref**2,
+        label="Noise component",
+        linewidth=3,
+    )
+    ax.set_xlabel("Time lag [s]")
+    ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
+    ax.set_title("Cross-correlation between microphone and hydrodynamic component")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    # ax.set_xscale("log")
+    ax.set_xlim(-0.025, 0.025)
+
+    ax.set_ylim(bottom=0.0)
+    ax.legend(loc="upper right")
+    plt.savefig(os.path.join(config["out_dir"], "correlation_comparison.png"))
+
+    correlation = []
+    with progress_bar as pb:
+        for micro in pb.track(data.microphones.T):
+            correlation.append(
+                np.abs(sg.correlate(micro, cve.signal, mode="full"))
+                / len(signal_micro) ** 2
+            )
+    correlation = np.array(correlation)
+    avg_correlation = np.mean(correlation, axis=0)
+    std_correlation = np.std(correlation, axis=0)
+    fig, ax = plt.subplots()
+
+    ax.plot(time_lags, avg_correlation / p_ref**2, label="Average cross-correlation")
+
+    ax.fill_between(
+        time_lags,
+        (avg_correlation - 1 * std_correlation) / p_ref**2,
+        (avg_correlation + 1 * std_correlation) / p_ref**2,
+        alpha=0.5,
+        label=r"$\pm \sigma$",
+    )
+    ax.set_xlabel("Time lag [s]")
+    ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
+    ax.set_title(
+        "Average cross-correlation between microphones and hydrodynamic component"
+    )
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    # ax.set_xscale("log")
+    ax.set_xlim(-0.025, 0.025)
+    ax.set_ylim(bottom=0.0)
+    ax.legend()
+    plt.savefig(
+        os.path.join(config["out_dir"], "correlation_hydro_avg.png"),
+        bbox_inches="tight",
+    )
+
+    # fig, ax = plt.subplots()
+    # ax.plot(f, csd_hydro.real, label="Real part")
+    # ax.plot(f, csd_hydro.imag, label="Imaginary part")
+    # ax.set_xlabel("Frequency [Hz]")
+    # ax.set_ylabel("CSD")
+    # ax.set_title("Cross-Spectral Density between microphone and hydrodynamic component")
+    # ax.grid(True, which="both", ls="--", lw=0.5)
+    # ax.legend()
+    # plt.savefig(os.path.join(config["out_dir"], "csd_hydro.png"))
+
+    fig, ax = plt.subplots()
+    ax.plot(cve.incoherent_coeffs_history, "-o")
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel("Number of incoherent coefficients")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    plt.savefig(os.path.join(config["out_dir"], "cve_convergence.png"))
+
+    fig, ax = plt.subplots()
+    ax.semilogx(f, 10 * np.log10(psd / p_ref), label="Original signal")
+    ax.set_xlabel("Frequency [Hz]")
+    ax.set_ylabel("Power Spectral Density [dB/Hz]")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.set_xlim(20, 20e3)
+    plt.savefig(os.path.join(config["out_dir"], "psd_original.png"))
+
+    fig, ax = plt.subplots()
+    ax.semilogx(f, 10 * np.log10(psd_hydro / p_ref), label="Original signal")
+    ax.set_xlabel("Frequency [Hz]")
+    ax.set_ylabel("Power Spectral Density [dB/Hz]")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.set_xlim(20, 20e3)
+    plt.savefig(os.path.join(config["out_dir"], "psd_denoised.png"))
+
+    fig, ax = plt.subplots()
+    ax.semilogx(f, 10 * np.log10(psd_noise / p_ref), label="Original signal")
+    ax.set_xlabel("Frequency [Hz]")
+    ax.set_ylabel("Power Spectral Density [dB/Hz]")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.set_xlim(20, 20e3)
+    plt.savefig(os.path.join(config["out_dir"], "psd_noise.png"))
+
+    fig, ax = plt.subplots()
+    ax.semilogx(f, 10 * np.log10(psd / p_ref), label="Original signal")
+    ax.semilogx(f, 10 * np.log10(psd_hydro / p_ref), label="Hydrodynamic component")
+    ax.semilogx(f, 10 * np.log10(psd_noise / p_ref), label="Noise component")
+
+    ax.set_xlabel("Frequency [Hz]")
+    ax.set_ylabel("Power Spectral Density [dB/Hz]")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.set_xlim(20, 20e3)
+    ax.legend()
+    plt.savefig(os.path.join(config["out_dir"], "psd_comparison.png"))
+
+    nsamples = 1000
+    fig, ax = plt.subplots()
+    ax.plot(data.time[:nsamples], signal[:nsamples], label="Original signal")
+    ax.plot(
+        data.time[:nsamples],
+        cve.signal[:nsamples],
+        "--",
+        label="Hydrodynamic component",
+    )
+    ax.plot(data.time[:nsamples], cve.noise[:nsamples], label="Noise component")
+    ax.plot(
+        data.time[:nsamples],
+        cve.signal[:nsamples] + cve.noise[:nsamples],
+        "--",
+        label="Reconstructed signal",
+    )
+    ax.set_xlabel("Time [s]")
+    ax.set_ylabel("Pressure fluctuation [Pa]")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.legend()
+    plt.savefig(os.path.join(config["out_dir"], "time_signal_comparison.png"))
+
+    def standard_gaussian(x):
+        return 1.0 / np.sqrt(2.0 * np.pi) * np.exp(-0.5 * x**2)
+
+    def standard_logistic(x):
+        return (
+            np.pi
+            / np.sqrt(3)
+            * np.exp(-x * np.pi / np.sqrt(3))
+            / (1.0 + np.exp(-x * np.pi / np.sqrt(3))) ** 2
+        )
+
+    fig, ax = plt.subplots()
+    ax.hist(
+        signal / signal.std(),
+        bins=100,
+        alpha=1.0,
+        label="Original signal",
+        density=True,
+        histtype="stepfilled",
+        zorder=1,
+    )
+    ax.hist(
+        cve.signal / cve.signal.std(),
+        bins=100,
+        alpha=1.0,
+        label="Hydrodynamic component",
+        density=True,
+        histtype="step",
+        linewidth=2.0,
+        zorder=2,
+    )
+    ax.hist(
+        cve.noise / cve.noise.std(),
+        bins=100,
+        alpha=1.0,
+        label="Noise component",
+        density=True,
+        zorder=3,
+    )
+    ax.plot(
+        np.linspace(-10.0, 10.0, 250),
+        standard_logistic(np.linspace(-10.0, 10.0, 250)),
+        "--",
+        color="tomato",
+        label="Standard Logistic",
+        zorder=4,
+    )
+    ax.set_xlabel(r"Pressure fluctuation / $\sigma$ [-]")
+    ax.set_ylabel("Probability density")
+    ax.set_yscale("log")
+    ax.set_ylim(bottom=1e-6)
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.legend(loc="lower right")
+    plt.savefig(os.path.join(config["out_dir"], "pdf_comparison.png"))
+
+    fig, ax = plt.subplots()
+    ax.hist(cve.noise, bins=100, alpha=1.0, label="Noise component", density=True)
+    ax.set_xlabel("Pressure fluctuation [Pa]")
+    ax.set_ylabel("Probability density")
+    ax.set_yscale("log")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    plt.savefig(os.path.join(config["out_dir"], "pdf_noise.png"))
+
+    fig, ax = plt.subplots()
+    ax.semilogx(f, coherence_signal, label="Original signal")
+    ax.semilogx(f, coherence_hydro, "--", label="Hydrodynamic component")
+    ax.semilogx(f, coherence_noise, label="Noise component")
+    ax.set_xlabel("Frequency [Hz]")
+    ax.set_ylabel("Coherence with microphone signal")
+    ax.set_xlim(20, 20e3)
+    ax.set_ylim(0.0, 1.0)
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.legend()
+    plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.png"))
 
 
 if __name__ == "__main__":
