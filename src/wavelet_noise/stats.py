@@ -1,127 +1,7 @@
 import numpy as np
 import scipy.signal as sg
 
-
-def spectrum(
-    data,
-    filter: bool = False,
-    flims: tuple = (0.0, 1.0),
-    fs: float = 1.0,
-    order: int = 2,
-    avg: int | None = None,
-    **kwargs,
-):
-    """
-    Compute the power spectral density (PSD) of the input data.
-
-    Parameters
-    ----------
-    data : np.ndarray
-        Input data to compute the spectrum.
-    filter : bool, optional
-        If True, apply a bandpass filter to the data before computing the
-         spectrum. Default is False.
-    flims : tuple, optional
-        Frequency limits for the bandpass filter (low, high) in Hz. Default is
-         (0.0, 1.0).
-    fs : float, optional
-        Sampling frequency in Hz. Default is 1.0.
-    order : int, optional
-        Order of the Butterworth filter. Default is 2.
-    avg : int, optional
-        Axis along which to average the power spectral density. If None, no
-        averaging is performed. Default is None.
-    **kwargs : dict, optional
-        Additional keyword arguments passed to `scipy.signal.welch`.
-
-    Returns
-    -------
-    f : np.ndarray
-        Frequencies at which the PSD is computed.
-    spp : np.ndarray
-        Power spectral density of the input data.
-    """
-    if filter:
-        filtered_data, sos = butter_bandpass_filter(
-            data, flims[0], flims[1], fs, order=order, form="sos"
-        )
-    else:
-        filtered_data = data
-
-    f, spp = sg.welch(filtered_data, fs=fs, **kwargs)
-
-    if spp.ndim > 1 and avg is not None:
-        spp = np.mean(spp, axis=avg)
-
-    if filter:
-        # Correct the power spectral density for the filter response
-        _, h = sg.freqz_sos(sos, worN=f, fs=fs)
-        gain = np.abs(h) ** 2 + 1e-12  # Power gain = |H(f)|^2
-        spp /= gain
-
-    return f, spp
-
-
-def coherence_function(
-    data: np.ndarray,
-    ref_index: int = 0,
-    filter: bool = False,
-    flims: tuple = (0.0, 1.0),
-    fs: float = 1.0,
-    order: int = 2,
-    **kwargs,
-):
-    """
-    Compute the coherence function for the input data.
-
-    Parameters
-    ----------
-    data : np.ndarray
-        Input data array where each column represents a sensor.
-    ref_index : int, optional
-        Index of the reference sensor in the data array. Default is 0.
-    filter : bool, optional
-        If True, apply a bandpass filter to the data before computing the
-          coherence. Default is False.
-    flims : tuple, optional
-        Frequency limits for the bandpass filter (low, high) in Hz. Default is
-          (0.0, 1.0).
-    fs : float, optional
-        Sampling frequency in Hz. Default is 1.0.
-    order : int, optional
-        Order of the Butterworth filter. Default is 2.
-    **kwargs : dict, optional
-        Additional keyword arguments passed to `scipy.signal.coherence`.
-
-    Returns
-    -------
-    f : np.ndarray
-        Frequencies at which the coherence is computed.
-    gamma : np.ndarray
-        Coherence values for each sensor with respect to the reference sensor.
-    """
-
-    reference = data[:, ref_index]  # Reference sensor (midspan)
-    if filter:
-        reference = butter_bandpass_filter(
-            reference, flims[0], flims[1], fs, order=order, form="sos"
-        )[0]  # TODO: check if the filter correction is needed also for the coherence
-
-    gamma = []
-
-    for i in range(data.shape[1]):
-        fi = data[:, i]  # Current sensor data
-        if filter:
-            fi = butter_bandpass_filter(fi, flims[0], flims[1], fs, order=order)
-        f, coh = sg.coherence(reference, fi, fs=fs, **kwargs)
-        gamma.append(coh)
-
-    gamma = np.array(gamma)
-
-    return f, gamma
-
-
-import scipy.signal as sg
+from typing import Callable
 
 
 def _butter_bandpass(lowcut, highcut, fs, order=5, output="sos"):
@@ -165,4 +45,55 @@ def butter_bandpass_filter(data, lowcut, highcut, fs, order=2, form="ba"):
             y = sg.lfilter(out[0], out[1], data, axis=0)
         case _:
             raise ValueError("Invalid filter form. Use 'sos' or 'ba'.")
-    return y, out
+    return y
+
+
+def conditioning(
+    signal: np.ndarray,
+    standardize: bool = False,
+    detrend: bool = False,
+    detrend_degree: int = 0,
+    filter: Callable[[np.ndarray], np.ndarray] = None,
+):
+    """
+    Perform standard conditioning on the input signal, including optional detrending and filtering.
+
+    Arguments
+    ----------
+    signal : np.ndarray
+        Input signal to be conditioned.
+    standardize : bool, optional
+        If True, standardize the signal to have zero mean and unit variance.
+        Default is False.
+    detrend : bool, optional
+        If True, detrend the signal. Default is False.
+    detrend_degree : int, optional
+        Degree of the polynomial for detrending. Default is 0 (constant).
+    filter : callable[[np.ndarray], np.ndarray]|None, optional
+        A filtering function that takes the signal as input and returns the
+        filtered signal. If None, no filtering is applied. Default is None.
+    Returns
+    -------
+    np.ndarray
+        Conditioned signal.
+    """
+    conditioned_signal = signal.copy()
+
+    if detrend:
+        t = np.arange(conditioned_signal.shape[0])
+        pp = np.polynomial.Polynomial.fit(
+            t,
+            conditioned_signal,
+            deg=detrend_degree,
+        )
+        conditioned_signal -= pp(t)
+
+    if filter is not None:
+        conditioned_signal = filter(conditioned_signal)
+
+    if standardize:
+        mean = np.mean(conditioned_signal, axis=0)
+        std = np.std(conditioned_signal, axis=0)
+        conditioned_signal = (conditioned_signal - mean) / std
+
+    return conditioned_signal
