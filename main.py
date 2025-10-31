@@ -54,7 +54,7 @@ def main():
         os.path.join(config["data_dir"], config["case_name"])
     )
 
-    signal = data.rmp[:, 0]
+    signal = data.rmp[:, 3]
     if config["conditioning"]["bandpass_filter"]["apply"]:
         bandpass_filter = partial(
             wn.stats.butter_bandpass_filter,
@@ -109,7 +109,7 @@ def main():
         if idx < 0:
             idx = 0
         integral_time_scale.append(integrate.simpson(autocorr[:idx], dx=1.0 / data.fs))
-        t_lag.append(time_lags[n // 8 - 1 + idx])
+        t_lag.append(time_lags[nperseg - 1 + idx])
     fig, ax = plt.subplots()
     ax.plot(threshold_corr, integral_time_scale, "-o")
 
@@ -351,14 +351,15 @@ def main():
     ax.hist(
         cve.noise / cve.noise.std(),
         bins=100,
-        alpha=1.0,
+        alpha=0.7,
         label="Noise component",
         density=True,
         zorder=3,
     )
     ax.plot(
         np.linspace(-10.0, 10.0, 250),
-        stats.logistic.pdf(np.linspace(-10.0, 10.0, 250), scale=np.sqrt(3) / np.pi),
+        # stats.logistic.pdf(np.linspace(-10.0, 10.0, 250), scale=np.sqrt(3) / np.pi),
+        stats.norm.pdf(np.linspace(-10.0, 10.0, 250)),
         "--",
         color="tomato",
         label="Standard Logistic",
