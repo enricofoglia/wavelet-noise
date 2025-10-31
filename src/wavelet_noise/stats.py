@@ -1,7 +1,17 @@
 import numpy as np
+
 import scipy.signal as sg
+import scipy.stats as stats
+import scipy.integrate as integrate
+
+from rich.console import Console
+from rich.table import Table
+from rich import box
+
 
 from typing import Callable
+
+console = Console()
 
 
 def _butter_bandpass(lowcut, highcut, fs, order=5, output="sos"):
@@ -13,7 +23,7 @@ def _butter_bandpass(lowcut, highcut, fs, order=5, output="sos"):
     return out
 
 
-def butter_bandpass_filter(data, lowcut, highcut, fs, order=2, form="ba"):
+def butter_bandpass_filter(data, lowcut, highcut, fs, order=2, form="ba") -> np.ndarray:
     """
     Filter the data using a Butterworth bandpass filter.
 
@@ -53,8 +63,8 @@ def conditioning(
     standardize: bool = False,
     detrend: bool = False,
     detrend_degree: int = 0,
-    filter: Callable[[np.ndarray], np.ndarray] = None,
-):
+    filter: Callable[[np.ndarray], np.ndarray] | None = None,
+) -> np.ndarray:
     """
     Perform standard conditioning on the input signal, including optional detrending and filtering.
 
@@ -97,3 +107,98 @@ def conditioning(
         conditioned_signal = (conditioned_signal - mean) / std
 
     return conditioned_signal
+
+
+def windowed_autocorrelation(
+    data: np.ndarray,
+    nperseg: int = 256,
+    noverlap: int | None = None,
+    return_std: bool = False,
+) -> np.ndarray:
+    """ """
+    if noverlap is None:
+        noverlap = nperseg // 2
+
+    n = data.shape[0]
+    step = nperseg - noverlap
+    n_windows = (n - noverlap) // step
+
+    correlations = []
+    for i in range(n_windows):
+        start = i * step
+        end = start + nperseg
+        segment = data[start:end]
+        segment_avg = np.mean(segment, axis=0)
+        segment_var = np.var(segment, axis=0)
+        autocorr = sg.correlate(
+            segment - segment_avg,
+            segment - segment_avg,
+            mode="full",
+        )[nperseg - 1 :] / (nperseg * segment_var)
+        correlations.append(autocorr)
+
+    correlations = np.array(correlations)
+    if return_std:
+        return correlations.mean(axis=0), correlations.std(axis=0)
+    return correlations.mean(axis=0)
+
+
+def compute_integral_time_scale(
+    data: np.ndarray, dt: float = 1.0, corr_threshold: float | None = 0.0
+) -> float:
+    """
+    Compute the integral time scale of the input signal.
+    """
+    n = data.shape[0]
+    autocorr = windowed_autocorrelation(data, nperseg=n // 4, noverlap=n // 8)
+
+    if corr_threshold is None:
+        idx = n
+    else:
+        idx = np.nonzero(autocorr < corr_threshold)[0][0] - 1
+        if idx < 0:
+            raise ValueError(
+                "No value of the autocorrelation is above the correlation threshold."
+            )
+
+    integral_time_scale = integrate.simpson(autocorr[:idx], dx=dt)
+    return integral_time_scale
+
+
+def compute_diagnostics(
+    data: np.ndarray, dt: float = 1.0, corr_threshold: float | None = 0.0
+) -> dict:
+    avg = np.mean(data, axis=0)
+    var = np.var(data, axis=0)
+    skew = stats.skew(data, axis=0, bias=False)
+    kurt = stats.kurtosis(data, axis=0, bias=False)
+    t_int = compute_integral_time_scale(data, corr_threshold=corr_threshold, dt=dt)
+    n_eff = round(data.shape[0] * dt / 2 / t_int)
+    return {
+        "mean": avg,
+        "variance": var,
+        "skewness": skew,
+        "kurtosis": kurt,
+        "integral_time_scale": t_int,
+        "effective_samples": n_eff,
+    }
+
+
+def display_diagnostics(
+    data: np.ndarray, dt: float = 1.0, corr_threshold: float | None = 0.0
+) -> None:
+    diagnostic = compute_diagnostics(data, dt=dt, corr_threshold=corr_threshold)
+
+    table = Table(box=box.ROUNDED)
+    table.add_column("Metric", style="bold")
+    table.add_column("Value", justify="right")
+
+    table.add_row("Mean", f"{diagnostic['mean']:.4f}")
+    table.add_row("Variance", f"{diagnostic['variance']:.4f}")
+    table.add_row("Skewness", f"{diagnostic['skewness']:.4f}")
+    table.add_row("Kurtosis", f"{diagnostic['kurtosis']:.4f}")
+    table.add_row("Time step", f"{dt:.2e}")
+    table.add_row("Int. Time Scale", f"{diagnostic['integral_time_scale']:.2e}")
+    table.add_row("Eff. Samples", f"{diagnostic['effective_samples']:d}")
+
+    console.print(table)

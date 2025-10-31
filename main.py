@@ -2,12 +2,17 @@ import os
 
 import yaml
 
+from functools import partial
+
 import numpy as np
 
 import scipy.signal as sg
 import scipy.stats as stats
+import scipy.integrate as integrate
 
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+
 import wavelet_noise as wn
 
 from rich.progress import (
@@ -50,6 +55,76 @@ def main():
     )
 
     signal = data.rmp[:, 0]
+    if config["conditioning"]["bandpass_filter"]["apply"]:
+        bandpass_filter = partial(
+            wn.stats.butter_bandpass_filter,
+            lowcut=config["conditioning"]["bandpass_filter"]["lowcut"],
+            highcut=config["conditioning"]["bandpass_filter"]["highcut"],
+            fs=data.fs[0],
+            order=2,
+            form="ba",
+        )
+    else:
+        bandpass_filter = None
+
+    conditioning = partial(
+        wn.stats.conditioning,
+        standardize=config["conditioning"]["standardize"],
+        detrend=config["conditioning"]["detrend"],
+        detrend_degree=config["conditioning"]["detrend_degree"],
+        filter=bandpass_filter,
+    )
+
+    signal = conditioning(signal)
+    wn.stats.display_diagnostics(signal, dt=1.0 / data.fs[0], corr_threshold=0.0)
+
+    # display autocorrelation of the rmp signal
+    n = signal.shape[0]
+    nperseg = n // 32
+    autocorr, autocorr_std = wn.stats.windowed_autocorrelation(
+        signal, nperseg=nperseg, noverlap=nperseg // 2, return_std=True
+    )
+    time_lags = sg.correlation_lags(nperseg, nperseg, mode="full") / data.fs
+    fig, ax = plt.subplots()
+    ax.plot(time_lags[nperseg - 1 :], autocorr)
+    ax.fill_between(
+        time_lags[nperseg - 1 :],
+        autocorr - autocorr_std,
+        autocorr + autocorr_std,
+        alpha=0.5,
+    )
+    ax.set_xlabel("Time lag [s]")
+    ax.set_ylabel("Autocorrelation [-]")
+    ax.set_title("Autocorrelation of RMP signal")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.set_xlim(0.0, 0.025)
+    plt.savefig(os.path.join(config["out_dir"], "autocorrelation_rmp.png"))
+    plt.close()
+
+    threshold_corr = np.linspace(0, 1, 25, endpoint=False)
+    integral_time_scale = []
+    t_lag = []
+    for thresh in threshold_corr:
+        idx = np.nonzero(autocorr < thresh)[0][0] - 1
+        if idx < 0:
+            idx = 0
+        integral_time_scale.append(integrate.simpson(autocorr[:idx], dx=1.0 / data.fs))
+        t_lag.append(time_lags[n // 8 - 1 + idx])
+    fig, ax = plt.subplots()
+    ax.plot(threshold_corr, integral_time_scale, "-o")
+
+    ax.set_xlabel("Autocorrelation threshold [-]")
+    ax.set_ylabel("Integral time scale $\Lambda_t$ [s]")
+    ax.set_title("Integral time scale vs autocorrelation threshold")
+    ax.xaxis.set_inverted(True)
+    formatter = ticker.ScalarFormatter(useMathText=True)
+    formatter.set_powerlimits((-3, -3))  # Force 10^-3 notation
+    ax.yaxis.set_major_formatter(formatter)
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    plt.savefig(
+        os.path.join(config["out_dir"], "itc_vs_threshold.png"), bbox_inches="tight"
+    )
+    plt.close("all")
 
     welch_kwargs = {
         "fs": data.fs,
@@ -76,7 +151,7 @@ def main():
 
     psd_hydro = sg.welch(cve.signal, **welch_kwargs)[1]
 
-    signal_micro = data.microphones[:, 29]
+    signal_micro = conditioning(data.microphones[:, 29])
 
     f, coherence_hydro = sg.coherence(signal_micro, cve.signal, **welch_kwargs)
     _, coherence_noise = sg.coherence(signal_micro, cve.noise, **welch_kwargs)
@@ -149,6 +224,7 @@ def main():
     ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "correlation_comparison.png"))
+    plt.close("all")
 
     correlation = []
     with progress_bar as pb:
@@ -185,7 +261,6 @@ def main():
         os.path.join(config["out_dir"], "correlation_hydro_avg.png"),
         bbox_inches="tight",
     )
-
 
     fig, ax = plt.subplots()
     ax.plot(cve.incoherent_coeffs_history, "-o")
@@ -229,6 +304,7 @@ def main():
     ax.set_xlim(20, 20e3)
     ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "psd_comparison.png"))
+    plt.close("all")
 
     nsamples = 1000
     fig, ax = plt.subplots()
@@ -240,12 +316,12 @@ def main():
         label="Hydrodynamic component",
     )
     ax.plot(data.time[:nsamples], cve.noise[:nsamples], label="Noise component")
-    ax.plot(
-        data.time[:nsamples],
-        cve.signal[:nsamples] + cve.noise[:nsamples],
-        "--",
-        label="Reconstructed signal",
-    )
+    # ax.plot(
+    #     data.time[:nsamples],
+    #     cve.signal[:nsamples] + cve.noise[:nsamples],
+    #     "--",
+    #     label="Reconstructed signal",
+    # ) # useful for debugging
     ax.set_xlabel("Time [s]")
     ax.set_ylabel("Pressure fluctuation [Pa]")
     ax.grid(True, which="both", ls="--", lw=0.5)
@@ -315,6 +391,7 @@ def main():
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.png"))
+    plt.close("all")
 
 
 if __name__ == "__main__":
