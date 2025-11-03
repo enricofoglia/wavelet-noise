@@ -136,6 +136,7 @@ RMP_CONVERT = {
     "4-12": [4, 8, 10, 12],
     "22-26": [22, 23, 24, 26],
     "25-29": [25, 26, 27, 29],
+    "11-26": [0, 0, 0, 0],  # placeholder for all RMPs from 11 to 26 TODO: check
 }
 
 VELOCITY_FACTOR = 1.14  # factor to convert from percentage to m/s
@@ -231,3 +232,56 @@ def read_beamforming_case(file_path: os.PathLike) -> Case:
         notape=metadata["notape"],
         fs=fs,
     )
+
+
+def list_beamforming_cases(directory: os.PathLike) -> list[os.PathLike]:
+    """
+    Lists all beamforming case files in a directory.
+    Parameters
+    ----------
+    directory : os.PathLike
+        Path to the directory containing beamforming case files.
+    Returns
+    -------
+    list[os.PathLike]
+        List of file paths to beamforming case files.
+    """
+    directory = os.path.abspath(directory)
+    if not os.path.isdir(directory):
+        raise NotADirectoryError(f"The directory {directory} does not exist.")
+
+    case_files = []
+    for file_name in os.listdir(directory):
+        if re.match(r"CD-ISAE-.*\.h5$", file_name):
+            case_files.append(os.path.join(directory, file_name))
+
+    return case_files
+
+
+def create_out_directory(
+    directory: os.PathLike, case_path: os.PathLike, rmp: int
+) -> os.PathLike:
+    """
+    Creates an output directories for overall comparison.
+
+    Parameters
+    ----------
+    directory : os.PathLike
+        Path to the output directory.
+    case_path : os.PathLike
+        Case under analysis.
+    rmp : int
+        Remote microphone probe index.
+
+    Returns
+    -------
+    os.PathLike
+        Path to the created or existing output directory.
+    """
+    directory = os.path.abspath(directory)
+    case_name = os.path.splitext(os.path.basename(case_path))[0]
+    case_dir = os.path.join(directory, case_name)
+    os.makedirs(case_dir, exist_ok=True)
+    rmp_dir = os.path.join(case_dir, f"RMP_{rmp}")
+    os.makedirs(rmp_dir, exist_ok=True)
+    return rmp_dir
