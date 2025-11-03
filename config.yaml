@@ -5,3 +5,12 @@ case_name: "CD-ISAE-0deg-40pr-rmp22-26-90s-1.h5"
 p_ref: 2.0e-5
 sound_speed: 343.0
 microphone_distance: 1.45
+# Signal conditioning parameters
+conditioning:
+  standardize: false
+  detrend: true
+  detrend_degree: 0
+  bandpass_filter:
+    apply: true
+    lowcut: 100.0 # Check Anna Caiazzo's parameters
+    highcut: 10000.0 # Check Anna Caiazzo's parameters
