@@ -136,7 +136,6 @@ RMP_CONVERT = {
     "4-12": [4, 8, 10, 12],
     "22-26": [22, 23, 24, 26],
     "25-29": [25, 26, 27, 29],
-    "11-26": [0, 0, 0, 0],  # placeholder for all RMPs from 11 to 26 TODO: check
 }
 
 VELOCITY_FACTOR = 1.14  # factor to convert from percentage to m/s
@@ -184,11 +183,7 @@ def parse_beamforming_name(file_name):
     # Convert wind speed: percentage to m/s (multiply by 1.14)
     wind_speed = float(wind_percent) * VELOCITY_FACTOR
 
-    rmp_numbers = RMP_CONVERT.get(rmp_code.strip())
-    if rmp_numbers is None:
-        raise ValueError(
-            f"RMP code '{rmp_code}' not recognized in filename '{file_name}'"
-        )
+    rmp_numbers = RMP_CONVERT.get(rmp_code.strip(), [996, 997, 998, 999]) # default unknown RMPs
 
     notape = "notape" in file_name
 

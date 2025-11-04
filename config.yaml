@@ -4,7 +4,7 @@ out_dir_root: "./out"
 out_dir: "./out/CD-ISAE-0deg-40pr-rmp22-26-90s-1"
 case_name: "CD-ISAE-0deg-40pr-rmp22-26-90s-1.h5"
 rmp_index: 0
-compute_all: true
+compute_all: false
 # Physical parameters
 p_ref: 2.0e-5
 sound_speed: 343.0
