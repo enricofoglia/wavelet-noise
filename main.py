@@ -15,26 +15,7 @@ import matplotlib.ticker as ticker
 
 import wavelet_noise as wn
 
-from rich.progress import (
-    BarColumn,
-    MofNCompleteColumn,
-    Progress,
-    TextColumn,
-    TimeElapsedColumn,
-    TimeRemainingColumn,
-)
-
-# Define custom progress bar
-progress_bar = Progress(
-    TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-    BarColumn(),
-    MofNCompleteColumn(),
-    TextColumn("•"),
-    TimeElapsedColumn(),
-    TextColumn("•"),
-    TimeRemainingColumn(),
-)
-
+from rich.progress import track
 
 # plt.style.use("style.mplstyle")
 plt.style.use("dark_background")
@@ -74,18 +55,11 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     # display autocorrelation of the rmp signal
     n = signal.shape[0]
     nperseg = n // 32
-    autocorr, autocorr_std = wn.stats.windowed_autocorrelation(
-        signal, nperseg=nperseg, noverlap=nperseg // 2, return_std=True
-    )
+    autocorr = sg.correlate(
+        signal, signal, mode="full")
     time_lags = sg.correlation_lags(nperseg, nperseg, mode="full") / data.fs
     fig, ax = plt.subplots()
     ax.plot(time_lags[nperseg - 1 :], autocorr)
-    ax.fill_between(
-        time_lags[nperseg - 1 :],
-        autocorr - autocorr_std,
-        autocorr + autocorr_std,
-        alpha=0.5,
-    )
     ax.set_xlabel("Time lag [s]")
     ax.set_ylabel("Autocorrelation [-]")
     ax.set_title("Autocorrelation of RMP signal")
@@ -220,12 +194,11 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     plt.close("all")
 
     correlation = []
-    with progress_bar as pb:
-        for micro in pb.track(data.microphones.T):
-            correlation.append(
-                np.abs(sg.correlate(micro, cve.signal, mode="full"))
-                / len(signal_micro) ** 2
-            )
+    for micro in track(data.microphones.T, transient=True, description="Microphones"):
+        correlation.append(
+            np.abs(sg.correlate(micro, cve.signal, mode="full"))
+            / len(signal_micro) ** 2
+        )
     correlation = np.array(correlation)
     avg_correlation = np.mean(correlation, axis=0)
     std_correlation = np.std(correlation, axis=0)
@@ -394,15 +367,22 @@ def main():
 
     if config["compute_all"]:
         cases = wn.utils.list_beamforming_cases(config["data_dir"])
-        with progress_bar as pb:
-            for case in pb.track(cases):
+
+        for case in track(cases, description="Analysing cases"):
+            try:
                 data = wn.utils.read_beamforming_case(case)
                 for rmp in range(4):
                     config["rmp_index"] = rmp
                     config["out_dir"] = wn.utils.create_out_directory(
-                        config["out_dir_root"], case, case.rmp_idx[rmp]
+                        config["out_dir_root"], case, data.rmp_idx[rmp]
                     )
                     perform_analysis(data, config)
+            except KeyboardInterrupt:
+                raise KeyboardInterrupt
+            except:
+                continue
+
+
     else:
         data = wn.utils.read_beamforming_case(
             os.path.join(config["data_dir"], config["case_name"])
