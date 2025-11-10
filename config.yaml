@@ -1,8 +1,7 @@
 ---
 data_dir: "/home/efoglia/Documents/02_data/05_cd_isae_beamforming"
 out_dir_root: "./out"
-out_dir: "./out/CD-ISAE-0deg-40pr-rmp22-26-90s-1"
-case_name: "CD-ISAE-0deg-40pr-rmp22-26-90s-1.h5"
+case_name: "CD-ISAE-5deg-40pr-rmp22-26-1.h5"
 rmp_index: 0
 compute_all: false
 # Physical parameters

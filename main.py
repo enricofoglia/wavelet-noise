@@ -15,14 +15,23 @@ import matplotlib.ticker as ticker
 
 import wavelet_noise as wn
 
+from rich import print
 from rich.progress import track
 
-# plt.style.use("style.mplstyle")
-plt.style.use("dark_background")
+from cycler import cycler
+from pypalettes import load_cmap
+cmap = load_cmap("Balistapus_undulatus")
+colors = [cmap(i) for i in range(cmap.N)]
+def_colors = cycler(color=colors)
+
+plt.style.use("style.mplstyle")
+# plt.style.use("dark_background")
 plt.rcParams.update(
     {
-        "lines.linewidth": 2,
-        "savefig.dpi": 300,
+        # "lines.linewidth": 2,
+        # "savefig.dpi": 300,
+        "axes.prop_cycle": def_colors
+
     }
 )
 
@@ -54,29 +63,28 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     # display autocorrelation of the rmp signal
     n = signal.shape[0]
-    nperseg = n // 32
     autocorr = sg.correlate(
-        signal, signal, mode="full")
-    time_lags = sg.correlation_lags(nperseg, nperseg, mode="full") / data.fs
+        signal, signal, mode="full")[n-1:] / n / signal.var()
+    time_lags = sg.correlation_lags(n, n, mode="full")[n-1:] / data.fs
     fig, ax = plt.subplots()
-    ax.plot(time_lags[nperseg - 1 :], autocorr)
+    ax.plot(time_lags, autocorr)
     ax.set_xlabel("Time lag [s]")
     ax.set_ylabel("Autocorrelation [-]")
     ax.set_title("Autocorrelation of RMP signal")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(0.0, 0.025)
-    plt.savefig(os.path.join(config["out_dir"], "autocorrelation_rmp.png"))
+    plt.savefig(os.path.join(config["out_dir"], "autocorrelation_rmp.pdf"))
     plt.close()
 
     threshold_corr = np.linspace(0, 1, 25, endpoint=False)
     integral_time_scale = []
     t_lag = []
     for thresh in threshold_corr:
-        idx = np.nonzero(autocorr < thresh)[0][0] - 1
-        if idx < 0:
-            idx = 0
-        integral_time_scale.append(integrate.simpson(autocorr[:idx], dx=1.0 / data.fs))
-        t_lag.append(time_lags[nperseg - 1 + idx])
+        idx = np.nonzero(autocorr < thresh)[0][0] 
+        if idx < 1:
+            idx = 1
+        integral_time_scale.append(integrate.trapezoid(autocorr[:idx], dx=1.0 / data.fs))
+        t_lag.append(time_lags[1 + idx])
     fig, ax = plt.subplots()
     ax.plot(threshold_corr, integral_time_scale, "-o")
 
@@ -89,7 +97,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.yaxis.set_major_formatter(formatter)
     ax.grid(True, which="both", ls="--", lw=0.5)
     plt.savefig(
-        os.path.join(config["out_dir"], "itc_vs_threshold.png"), bbox_inches="tight"
+        os.path.join(config["out_dir"], "itc_vs_threshold.pdf"), bbox_inches="tight"
     )
     plt.close("all")
 
@@ -165,7 +173,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.png"))
+    plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.pdf"))
 
     fig, ax = plt.subplots()
     ax.plot(time_lags, np.abs(correlation_signal) / p_ref**2, label="Original signal")
@@ -190,7 +198,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "correlation_comparison.png"))
+    plt.savefig(os.path.join(config["out_dir"], "correlation_comparison.pdf"))
     plt.close("all")
 
     correlation = []
@@ -224,16 +232,16 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
     plt.savefig(
-        os.path.join(config["out_dir"], "correlation_hydro_avg.png"),
+        os.path.join(config["out_dir"], "correlation_hydro_avg.pdf"),
         bbox_inches="tight",
     )
 
     fig, ax = plt.subplots()
-    ax.plot(cve.incoherent_coeffs_history, "-o")
+    ax.plot(np.array(cve.incoherent_coeffs_history) / n, "-o")
     ax.set_xlabel("Iteration")
-    ax.set_ylabel("Number of incoherent coefficients")
+    ax.set_ylabel("Fraction of incoherent coefficients")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    plt.savefig(os.path.join(config["out_dir"], "cve_convergence.png"))
+    plt.savefig(os.path.join(config["out_dir"], "cve_convergence.pdf"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd / p_ref), label="Original signal")
@@ -241,7 +249,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
-    plt.savefig(os.path.join(config["out_dir"], "psd_original.png"))
+    plt.savefig(os.path.join(config["out_dir"], "psd_original.pdf"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd_hydro / p_ref), label="Original signal")
@@ -249,7 +257,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
-    plt.savefig(os.path.join(config["out_dir"], "psd_denoised.png"))
+    plt.savefig(os.path.join(config["out_dir"], "psd_denoised.pdf"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd_noise / p_ref), label="Original signal")
@@ -257,7 +265,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
-    plt.savefig(os.path.join(config["out_dir"], "psd_noise.png"))
+    plt.savefig(os.path.join(config["out_dir"], "psd_noise.pdf"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd / p_ref), label="Original signal")
@@ -269,7 +277,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "psd_comparison.png"))
+    plt.savefig(os.path.join(config["out_dir"], "psd_comparison.pdf"))
     plt.close("all")
 
     nsamples = 1000
@@ -292,7 +300,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Pressure fluctuation [Pa]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "time_signal_comparison.png"))
+    plt.savefig(os.path.join(config["out_dir"], "time_signal_comparison.pdf"))
 
     fig, ax = plt.subplots()
     ax.hist(
@@ -337,7 +345,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylim(bottom=1e-6)
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="lower right")
-    plt.savefig(os.path.join(config["out_dir"], "pdf_comparison.png"))
+    plt.savefig(os.path.join(config["out_dir"], "pdf_comparison.pdf"))
 
     fig, ax = plt.subplots()
     ax.hist(cve.noise, bins=100, alpha=1.0, label="Noise component", density=True)
@@ -345,7 +353,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Probability density")
     ax.set_yscale("log")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    plt.savefig(os.path.join(config["out_dir"], "pdf_noise.png"))
+    plt.savefig(os.path.join(config["out_dir"], "pdf_noise.pdf"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, coherence_signal, label="Original signal")
@@ -357,7 +365,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylim(0.0, 1.0)
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.png"))
+    plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.pdf"))
     plt.close("all")
 
 
@@ -376,6 +384,7 @@ def main():
                     config["out_dir"] = wn.utils.create_out_directory(
                         config["out_dir_root"], case, data.rmp_idx[rmp]
                     )
+                    print(f"Output directory : {config['out_dir']}")
                     perform_analysis(data, config)
             except KeyboardInterrupt:
                 raise KeyboardInterrupt
@@ -390,8 +399,10 @@ def main():
         config["out_dir"] = wn.utils.create_out_directory(
             config["out_dir_root"],
             os.path.join(config["data_dir"], config["case_name"]),
-            config["rmp_index"],
+            data.rmp_idx[config["rmp_index"]],
         )
+
+        print(f"[bold]Output directory[/bold] : {config['out_dir']}")
         wn.stats.display_diagnostics(data.rmp[:, config["rmp_index"]], dt=1.0 / data.fs[0], corr_threshold=0.0)
         perform_analysis(data, config)
 
