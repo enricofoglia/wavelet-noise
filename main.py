@@ -131,7 +131,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     f, coherence_hydro = sg.coherence(signal_micro, cve.signal, **welch_kwargs)
     _, coherence_noise = sg.coherence(signal_micro, cve.noise, **welch_kwargs)
-    _, coherence_signal = sg.coherence(signal_micro, cve.signal, **welch_kwargs)
+    _, coherence_signal = sg.coherence(signal_micro, signal, **welch_kwargs)
 
     psd_micro = sg.welch(signal_micro, **welch_kwargs)[1]
 
@@ -411,6 +411,8 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.pdf"))
     plt.close("all")
 
+    weiner_analysis(signal, signal_micro, config, data.fs)
+
 
 def main():
     with open("config.yaml", "r") as f:
@@ -449,6 +451,64 @@ def main():
             data.rmp[:, config["rmp_index"]], dt=1.0 / data.fs[0], corr_threshold=0.0
         )
         perform_analysis(data, config)
+
+def weiner_analysis(signal, micro, config, fs=1.0):
+    hydro = sg.wiener(signal)
+    noise = signal - hydro
+
+    welch_kwargs = {
+        "fs": fs,
+        "nperseg": signal.shape[0] // 2**6,
+        "noverlap": signal.shape[0] // 2**7,
+        "window": "hamming",
+    }
+
+    f, psd = sg.welch(signal, **welch_kwargs)
+    psd_hydro = sg.welch(hydro, **welch_kwargs)[1]
+    psd_noise = sg.welch(noise, **welch_kwargs)[1]
+
+    coherence_hydro = sg.coherence(micro, hydro, **welch_kwargs)[1]
+    coherence_noise = sg.coherence(micro, noise, **welch_kwargs)[1]
+    coherence_signal = sg.coherence(micro, signal, **welch_kwargs)[1]
+
+
+    p_ref = config["p_ref"]
+    lowcut = config["conditioning"]["bandpass_filter"]["lowcut"]
+    highcut = config["conditioning"]["bandpass_filter"]["highcut"]
+
+    fig, ax = plt.subplots()
+    ax.semilogx(f, 10 * np.log10(psd / p_ref**2), label="Original signal")
+    ax.semilogx(
+        f, 10 * np.log10(psd_hydro / p_ref**2), "--", label="Coherent component"
+    )
+    ax.semilogx(f, 10 * np.log10(psd_noise / p_ref**2), label="Incoherent component")
+    ax.axvspan(20, lowcut, color="0.9")
+    ax.axvspan(highcut, 20e3, color="0.9")
+    ax.set_xlabel("Frequency [Hz]")
+    ax.set_ylabel("Power Spectral Density [dB/Hz]")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.set_xlim(20, 20e3)
+    ax.set_ylim(-60, 80)
+    ax.set_facecolor("0.9")
+    ax.legend(loc="upper right")
+    plt.savefig(os.path.join(config["out_dir"], "wiener_psd_comparison.pdf"))
+    
+    fig, ax = plt.subplots()
+    ax.semilogx(f, coherence_signal, label="Original signal")
+    ax.semilogx(f, coherence_hydro, "--", label="Coherent component")
+    ax.semilogx(f, coherence_noise, label="Incoherent component")
+    ax.set_xlabel("Frequency [Hz]")
+    ax.set_ylabel("Coherence with microphone signal")
+    ax.set_xlim(20, 20e3)
+    ax.set_ylim(0.0, 1.0)
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.legend(loc="upper right")
+    ax.set_facecolor("0.9")
+    plt.savefig(os.path.join(config["out_dir"], "wiener_coherence_comparison.pdf"))
+    plt.close("all")
+
+
+
 
 
 if __name__ == "__main__":

@@ -149,6 +149,7 @@ def compute_diagnostics(
         "kurtosis": kurt,
         "integral_time_scale": t_int,
         "effective_samples": n_eff,
+        "samples": data.shape[0]
     }
 
 
@@ -168,5 +169,5 @@ def display_diagnostics(
     table.add_row("Time step", f"{dt:.2e}")
     table.add_row("Int. Time Scale", f"{diagnostic['integral_time_scale']:.2e}")
     table.add_row("Eff. Samples", f"{diagnostic['effective_samples']:d}")
-
+    table.add_row("Total Samples", f"{diagnostic['samples']:d}")
     console.print(table)
