@@ -109,7 +109,6 @@ def conditioning(
     return conditioned_signal
 
 
-
 def compute_integral_time_scale(
     data: np.ndarray, dt: float = 1.0, corr_threshold: float | None = 0.0
 ) -> float:
@@ -117,12 +116,14 @@ def compute_integral_time_scale(
     Compute the integral time scale of the input signal.
     """
     n = data.shape[0]
-    autocorr = sg.correlate(data, data, mode="full")[n-1:] / n / data.var() # biased autocorrelation
+    autocorr = (
+        sg.correlate(data, data, mode="full")[n - 1 :] / n / data.var()
+    )  # biased autocorrelation
 
     if corr_threshold is None:
         idx = n
     else:
-        idx = np.nonzero(autocorr < corr_threshold)[0][0] 
+        idx = np.nonzero(autocorr < corr_threshold)[0][0]
         if idx < 1:
             raise ValueError(
                 "No value of the autocorrelation is above the correlation threshold."

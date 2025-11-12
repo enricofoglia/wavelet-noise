@@ -20,7 +20,8 @@ from rich.progress import track
 
 from cycler import cycler
 from pypalettes import load_cmap
-cmap = load_cmap("Balistapus_undulatus")
+
+cmap = load_cmap("CafeTerrace")
 colors = [cmap(i) for i in range(cmap.N)]
 def_colors = cycler(color=colors)
 
@@ -31,7 +32,6 @@ plt.rcParams.update(
         # "lines.linewidth": 2,
         # "savefig.dpi": 300,
         "axes.prop_cycle": def_colors
-
     }
 )
 
@@ -63,9 +63,8 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     # display autocorrelation of the rmp signal
     n = signal.shape[0]
-    autocorr = sg.correlate(
-        signal, signal, mode="full")[n-1:] / n / signal.var()
-    time_lags = sg.correlation_lags(n, n, mode="full")[n-1:] / data.fs
+    autocorr = sg.correlate(signal, signal, mode="full")[n - 1 :] / n / signal.var()
+    time_lags = sg.correlation_lags(n, n, mode="full")[n - 1 :] / data.fs
     fig, ax = plt.subplots()
     ax.plot(time_lags, autocorr)
     ax.set_xlabel("Time lag [s]")
@@ -80,10 +79,12 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     integral_time_scale = []
     t_lag = []
     for thresh in threshold_corr:
-        idx = np.nonzero(autocorr < thresh)[0][0] 
+        idx = np.nonzero(autocorr < thresh)[0][0]
         if idx < 1:
             idx = 1
-        integral_time_scale.append(integrate.trapezoid(autocorr[:idx], dx=1.0 / data.fs))
+        integral_time_scale.append(
+            integrate.trapezoid(autocorr[:idx], dx=1.0 / data.fs)
+        )
         t_lag.append(time_lags[1 + idx])
     fig, ax = plt.subplots()
     ax.plot(threshold_corr, integral_time_scale, "-o")
@@ -111,7 +112,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     f, psd = sg.welch(signal, **welch_kwargs)
 
     cve = wn.wavelet.coherent_vortex_extraction(
-        signal, wavelet="coif8", max_iter=100, tol=1, use_approx=False
+        signal, wavelet=config["wavelet"], max_iter=100, tol=1, use_approx=False
     )
 
     print(f"Number of iterations: {cve.iterations}")
@@ -126,20 +127,31 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     psd_hydro = sg.welch(cve.signal, **welch_kwargs)[1]
 
-    signal_micro = conditioning(data.microphones[:, 29])
+    signal_micro = conditioning(data.microphones[:, config["micro_index"]])
 
     f, coherence_hydro = sg.coherence(signal_micro, cve.signal, **welch_kwargs)
     _, coherence_noise = sg.coherence(signal_micro, cve.noise, **welch_kwargs)
     _, coherence_signal = sg.coherence(signal_micro, cve.signal, **welch_kwargs)
 
+    psd_micro = sg.welch(signal_micro, **welch_kwargs)[1]
+
     correlation_hydro = (
-        sg.correlate(signal_micro, cve.signal, mode="full") / len(signal_micro) ** 2
+        sg.correlate(signal_micro, cve.signal, mode="full")
+        / len(signal_micro)
+        / signal_micro.std()
+        / cve.signal.std()
     )
     correlation_signal = (
-        sg.correlate(signal_micro, signal, mode="full") / len(signal_micro) ** 2
+        sg.correlate(signal_micro, signal, mode="full")
+        / len(signal_micro)
+        / signal_micro.std()
+        / signal.std()
     )
     correlation_noise = (
-        sg.correlate(signal_micro, cve.noise, mode="full") / len(signal_micro) ** 2
+        sg.correlate(signal_micro, cve.noise, mode="full")
+        / len(signal_micro)
+        / signal_micro.std()
+        / cve.noise.std()
     )
 
     time_lags = (
@@ -150,48 +162,41 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     error_L = 0.05  # 1 cm error in distance measurement
     p_ref = config.get("p_ref", 20e-6)
 
+    # print
+    print(f"Theoretical time lag: {L / c0:.2e} s")
+    peak_lag = time_lags[np.argmax(correlation_hydro)]
+    print(f"Peak time lag: {peak_lag:.2e} s")
+    print(f"Relative error: {np.abs(peak_lag - L / c0) * c0 / L:.1%}")
     fig, ax = plt.subplots()
-    ax.fill_betweenx(
-        [0, max(np.abs(correlation_hydro))],
-        (L + error_L) / c0,
-        (L - error_L) / c0,
-        color="tomato",
-        alpha=0.3,
-        label=r"Error on $t^*=L/c_0$",
-    )
-    ax.axvline(L / c0, color="tomato", ls="--", label=r"$t^*=L/c_0$")
-    for i in range(2, 11):
-        ax.axvline(i * L / c0, color="tomato", ls="--")
-    ax.plot(time_lags, np.abs(correlation_hydro) / p_ref**2)
 
+    ax.axvline(L / c0, color="tomato", ls="--", label=r"$t^*=L/c_0$")
+    ax.plot(time_lags, correlation_hydro)
     ax.set_xlabel("Time lag [s]")
-    ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
-    ax.set_title("Cross-correlation between microphone and hydrodynamic component")
+    ax.set_ylabel(r"Cross-correlation [-]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     # ax.set_xscale("log")
-    ax.set_xlim(-0.025, 0.025)
+    ax.set_xlim(-0.015, 0.025)
 
-    ax.set_ylim(bottom=0.0)
+    # ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.pdf"))
 
     fig, ax = plt.subplots()
-    ax.plot(time_lags, np.abs(correlation_signal) / p_ref**2, label="Original signal")
+    ax.plot(time_lags, correlation_signal, label="Original signal")
     ax.plot(
         time_lags,
-        np.abs(correlation_hydro) / p_ref**2,
+        correlation_hydro,
         "--",
-        label="Hydrodynamic component",
+        label="Coherent component",
     )
     ax.plot(
         time_lags,
-        np.abs(correlation_noise) / p_ref**2,
-        label="Noise component",
+        correlation_noise,
+        label="Incoherent component",
         linewidth=3,
     )
     ax.set_xlabel("Time lag [s]")
-    ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
-    ax.set_title("Cross-correlation between microphone and hydrodynamic component")
+    ax.set_ylabel(r"Cross-correlation [-]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     # ax.set_xscale("log")
     ax.set_xlim(-0.025, 0.025)
@@ -202,30 +207,34 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     plt.close("all")
 
     correlation = []
-    for micro in track(data.microphones.T, transient=True, description="Microphones"):
+    for micro in track(
+        data.microphones.T[:60], transient=True, description="Microphones"
+    ):
         correlation.append(
             np.abs(sg.correlate(micro, cve.signal, mode="full"))
-            / len(signal_micro) ** 2
+            / len(signal_micro)
+            / micro.std()
+            / cve.signal.std()
         )
     correlation = np.array(correlation)
     avg_correlation = np.mean(correlation, axis=0)
     std_correlation = np.std(correlation, axis=0)
     fig, ax = plt.subplots()
 
-    ax.plot(time_lags, avg_correlation / p_ref**2, label="Average cross-correlation")
+    ax.plot(time_lags, avg_correlation, label="Average cross-correlation")
 
     ax.fill_between(
         time_lags,
-        (avg_correlation - 1 * std_correlation) / p_ref**2,
-        (avg_correlation + 1 * std_correlation) / p_ref**2,
+        (avg_correlation - 1 * std_correlation),
+        (avg_correlation + 1 * std_correlation),
         alpha=0.5,
         label=r"$\pm \sigma$",
     )
+    ax.axvline(L / c0, color="tomato", ls="--", label=r"$t^*=L/c_0$")
+
     ax.set_xlabel("Time lag [s]")
-    ax.set_ylabel(r"Cross-correlation / $p_{ref}^2$ [-]")
-    ax.set_title(
-        "Average cross-correlation between microphones and hydrodynamic component"
-    )
+    ax.set_ylabel(r"Cross-correlation [-]")
+
     ax.grid(True, which="both", ls="--", lw=0.5)
     # ax.set_xscale("log")
     ax.set_xlim(-0.025, 0.025)
@@ -243,16 +252,24 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.grid(True, which="both", ls="--", lw=0.5)
     plt.savefig(os.path.join(config["out_dir"], "cve_convergence.pdf"))
 
+    lowcut = config["conditioning"]["bandpass_filter"]["lowcut"]
+    highcut = config["conditioning"]["bandpass_filter"]["highcut"]
+
     fig, ax = plt.subplots()
-    ax.semilogx(f, 10 * np.log10(psd / p_ref), label="Original signal")
+    ax.semilogx(f, 10 * np.log10(psd / p_ref**2), label="Original signal")
+    ax.axvspan(20, lowcut, color="0.9")
+    ax.axvspan(highcut, 20e3, color="0.9")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
+    ax.set_ylim(-60, 80)
     plt.savefig(os.path.join(config["out_dir"], "psd_original.pdf"))
 
     fig, ax = plt.subplots()
-    ax.semilogx(f, 10 * np.log10(psd_hydro / p_ref), label="Original signal")
+    ax.semilogx(f, 10 * np.log10(psd_hydro / p_ref**2), label="Original signal")
+    ax.axvspan(20, lowcut, color="0.9")
+    ax.axvspan(highcut, 20e3, color="0.9")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
@@ -260,7 +277,9 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     plt.savefig(os.path.join(config["out_dir"], "psd_denoised.pdf"))
 
     fig, ax = plt.subplots()
-    ax.semilogx(f, 10 * np.log10(psd_noise / p_ref), label="Original signal")
+    ax.semilogx(f, 10 * np.log10(psd_noise / p_ref**2), label="Original signal")
+    ax.axvspan(20, lowcut, color="0.9")
+    ax.axvspan(highcut, 20e3, color="0.9")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
@@ -268,17 +287,34 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     plt.savefig(os.path.join(config["out_dir"], "psd_noise.pdf"))
 
     fig, ax = plt.subplots()
-    ax.semilogx(f, 10 * np.log10(psd / p_ref), label="Original signal")
-    ax.semilogx(f, 10 * np.log10(psd_hydro / p_ref), label="Hydrodynamic component")
-    ax.semilogx(f, 10 * np.log10(psd_noise / p_ref), label="Noise component")
-
+    ax.semilogx(f, 10 * np.log10(psd / p_ref**2), label="Original signal")
+    ax.semilogx(
+        f, 10 * np.log10(psd_hydro / p_ref**2), "--", label="Coherent component"
+    )
+    ax.semilogx(f, 10 * np.log10(psd_noise / p_ref**2), label="Incoherent component")
+    ax.axvspan(20, lowcut, color="0.9")
+    ax.axvspan(highcut, 20e3, color="0.9")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
+    ax.set_ylim(-60, 80)
     ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "psd_comparison.pdf"))
     plt.close("all")
+
+    fig, ax = plt.subplots()
+    ax.semilogx(f, 10 * np.log10(psd_micro / p_ref**2), label="Microphone signal")
+    ax.axvspan(20, lowcut, color="0.9")
+    ax.axvspan(highcut, 20e3, color="0.9")
+    ax.set_xlabel("Frequency [Hz]")
+    ax.set_ylabel("Power Spectral Density [dB/Hz]")
+    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.set_xlim(20, 20e3)
+    ax.set_ylim(-60, 40)
+    plt.savefig(
+        os.path.join(config["out_dir"], f"psd_farfield_{config['micro_index'] + 1}.pdf")
+    )
 
     nsamples = 1000
     fig, ax = plt.subplots()
@@ -287,9 +323,9 @@ def perform_analysis(data: wn.utils.Case, config: dict):
         data.time[:nsamples],
         cve.signal[:nsamples],
         "--",
-        label="Hydrodynamic component",
+        label="Coherent component",
     )
-    ax.plot(data.time[:nsamples], cve.noise[:nsamples], label="Noise component")
+    ax.plot(data.time[:nsamples], cve.noise[:nsamples], label="Incoherent component")
     # ax.plot(
     #     data.time[:nsamples],
     #     cve.signal[:nsamples] + cve.noise[:nsamples],
@@ -316,7 +352,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
         cve.signal / cve.signal.std(),
         bins=100,
         alpha=1.0,
-        label="Hydrodynamic component",
+        label="Coherent component",
         density=True,
         histtype="step",
         linewidth=2.0,
@@ -325,30 +361,37 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.hist(
         cve.noise / cve.noise.std(),
         bins=100,
-        alpha=0.7,
-        label="Noise component",
+        alpha=1.0,
+        label="Incoherent component",
+        histtype="step",
+        linewidth=2.0,
         density=True,
         zorder=3,
     )
     ax.plot(
         np.linspace(-10.0, 10.0, 250),
-        # stats.logistic.pdf(np.linspace(-10.0, 10.0, 250), scale=np.sqrt(3) / np.pi),
-        stats.norm.pdf(np.linspace(-10.0, 10.0, 250)),
+        stats.logistic.pdf(np.linspace(-10.0, 10.0, 250), scale=np.sqrt(3) / np.pi),
         "--",
-        color="tomato",
         label="Standard Logistic",
         zorder=4,
+    )
+    ax.plot(
+        np.linspace(-10.0, 10.0, 250),
+        stats.norm.pdf(np.linspace(-10.0, 10.0, 250)),
+        "-.",
+        label="Standard Gaussian",
+        zorder=5,
     )
     ax.set_xlabel(r"Pressure fluctuation / $\sigma$ [-]")
     ax.set_ylabel("Probability density")
     ax.set_yscale("log")
     ax.set_ylim(bottom=1e-6)
-    ax.grid(True, which="both", ls="--", lw=0.5)
+    ax.grid(True, which="both", ls="--", lw=0.5, zorder=0)
     ax.legend(loc="lower right")
     plt.savefig(os.path.join(config["out_dir"], "pdf_comparison.pdf"))
 
     fig, ax = plt.subplots()
-    ax.hist(cve.noise, bins=100, alpha=1.0, label="Noise component", density=True)
+    ax.hist(cve.noise, bins=100, alpha=1.0, label="Incoherent component", density=True)
     ax.set_xlabel("Pressure fluctuation [Pa]")
     ax.set_ylabel("Probability density")
     ax.set_yscale("log")
@@ -357,8 +400,8 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     fig, ax = plt.subplots()
     ax.semilogx(f, coherence_signal, label="Original signal")
-    ax.semilogx(f, coherence_hydro, "--", label="Hydrodynamic component")
-    ax.semilogx(f, coherence_noise, label="Noise component")
+    ax.semilogx(f, coherence_hydro, "--", label="Coherent component")
+    ax.semilogx(f, coherence_noise, label="Incoherent component")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Coherence with microphone signal")
     ax.set_xlim(20, 20e3)
@@ -391,7 +434,6 @@ def main():
             except:
                 continue
 
-
     else:
         data = wn.utils.read_beamforming_case(
             os.path.join(config["data_dir"], config["case_name"])
@@ -403,9 +445,10 @@ def main():
         )
 
         print(f"[bold]Output directory[/bold] : {config['out_dir']}")
-        wn.stats.display_diagnostics(data.rmp[:, config["rmp_index"]], dt=1.0 / data.fs[0], corr_threshold=0.0)
+        wn.stats.display_diagnostics(
+            data.rmp[:, config["rmp_index"]], dt=1.0 / data.fs[0], corr_threshold=0.0
+        )
         perform_analysis(data, config)
-
 
 
 if __name__ == "__main__":
