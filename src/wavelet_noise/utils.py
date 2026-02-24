@@ -183,11 +183,7 @@ def parse_beamforming_name(file_name):
     # Convert wind speed: percentage to m/s (multiply by 1.14)
     wind_speed = float(wind_percent) * VELOCITY_FACTOR
 
-    rmp_numbers = RMP_CONVERT.get(rmp_code.strip())
-    if rmp_numbers is None:
-        raise ValueError(
-            f"RMP code '{rmp_code}' not recognized in filename '{file_name}'"
-        )
+    rmp_numbers = RMP_CONVERT.get(rmp_code.strip(), [996, 997, 998, 999]) # default unknown RMPs 
 
     notape = "notape" in file_name
 
@@ -231,3 +227,56 @@ def read_beamforming_case(file_path: os.PathLike) -> Case:
         notape=metadata["notape"],
         fs=fs,
     )
+
+
+def list_beamforming_cases(directory: os.PathLike) -> list[os.PathLike]:
+    """
+    Lists all beamforming case files in a directory.
+    Parameters
+    ----------
+    directory : os.PathLike
+        Path to the directory containing beamforming case files.
+    Returns
+    -------
+    list[os.PathLike]
+        List of file paths to beamforming case files.
+    """
+    directory = os.path.abspath(directory)
+    if not os.path.isdir(directory):
+        raise NotADirectoryError(f"The directory {directory} does not exist.")
+
+    case_files = []
+    for file_name in os.listdir(directory):
+        if re.match(r"CD-ISAE-.*\.h5$", file_name):
+            case_files.append(os.path.join(directory, file_name))
+
+    return case_files
+
+
+def create_out_directory(
+    directory: os.PathLike, case_path: os.PathLike, rmp: int
+) -> os.PathLike:
+    """
+    Creates an output directories for overall comparison.
+
+    Parameters
+    ----------
+    directory : os.PathLike
+        Path to the output directory.
+    case_path : os.PathLike
+        Case under analysis.
+    rmp : int
+        Remote microphone probe index.
+
+    Returns
+    -------
+    os.PathLike
+        Path to the created or existing output directory.
+    """
+    directory = os.path.abspath(directory)
+    case_name = os.path.splitext(os.path.basename(case_path))[0]
+    case_dir = os.path.join(directory, case_name)
+    os.makedirs(case_dir, exist_ok=True)
+    rmp_dir = os.path.join(case_dir, f"RMP_{rmp}")
+    os.makedirs(rmp_dir, exist_ok=True)
+    return rmp_dir

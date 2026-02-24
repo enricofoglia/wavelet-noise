@@ -46,15 +46,8 @@ plt.rcParams.update(
 )
 
 
-def main():
-    with open("config.yaml", "r") as f:
-        config = yaml.load(f, Loader=yaml.Loader)
-
-    data = wn.utils.read_beamforming_case(
-        os.path.join(config["data_dir"], config["case_name"])
-    )
-
-    signal = data.rmp[:, 3]
+def perform_analysis(data: wn.utils.Case, config: dict):
+    signal = data.rmp[:, config["rmp_index"]]
     if config["conditioning"]["bandpass_filter"]["apply"]:
         bandpass_filter = partial(
             wn.stats.butter_bandpass_filter,
@@ -76,7 +69,7 @@ def main():
     )
 
     signal = conditioning(signal)
-    wn.stats.display_diagnostics(signal, dt=1.0 / data.fs[0], corr_threshold=0.0)
+    # wn.stats.display_diagnostics(signal, dt=1.0 / data.fs[0], corr_threshold=0.0)
 
     # display autocorrelation of the rmp signal
     n = signal.shape[0]
@@ -393,6 +386,35 @@ def main():
     ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.png"))
     plt.close("all")
+
+
+def main():
+    with open("config.yaml", "r") as f:
+        config = yaml.load(f, Loader=yaml.Loader)
+
+    if config["compute_all"]:
+        cases = wn.utils.list_beamforming_cases(config["data_dir"])
+        with progress_bar as pb:
+            for case in pb.track(cases):
+                data = wn.utils.read_beamforming_case(case)
+                for rmp in range(4):
+                    config["rmp_index"] = rmp
+                    config["out_dir"] = wn.utils.create_out_directory(
+                        config["out_dir_root"], case, case.rmp_idx[rmp]
+                    )
+                    perform_analysis(data, config)
+    else:
+        data = wn.utils.read_beamforming_case(
+            os.path.join(config["data_dir"], config["case_name"])
+        )
+        config["out_dir"] = wn.utils.create_out_directory(
+            config["out_dir_root"],
+            os.path.join(config["data_dir"], config["case_name"]),
+            config["rmp_index"],
+        )
+        wn.stats.display_diagnostics(data.rmp[:, config["rmp_index"]], dt=1.0 / data.fs[0], corr_threshold=0.0)
+        perform_analysis(data, config)
+
 
 
 if __name__ == "__main__":
