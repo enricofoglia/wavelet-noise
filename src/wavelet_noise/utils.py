@@ -202,6 +202,26 @@ def parse_beamforming_name(file_name):
 def read_beamforming_case(file_path: os.PathLike) -> Case:
     """
     Reads a beamforming case from an HDF5 file and returns a Case object.
+
+    Parameters
+    ----------
+    file_path : os.PathLike
+        Path to the HDF5 file containing the beamforming data.
+    
+    Returns
+    -------
+    Case
+        A Case object containing the data and metadata from the file.
+
+    Examples
+    --------
+    >>> case = read_beamforming_case("CD-ISAE-5deg-50pr-rmp22-26-90s-notape-1.h5")
+    >>> case.speed
+    57.0
+    >>> case.aoa
+    5.0
+    >>> case.rmp_idx
+    [22, 23, 24, 26]
     """
     file_path = _check_file_exists(file_path)
     metadata = parse_beamforming_name(os.path.basename(file_path))
