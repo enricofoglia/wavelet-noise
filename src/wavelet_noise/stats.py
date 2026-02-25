@@ -202,3 +202,32 @@ def display_diagnostics(
     table.add_row("Eff. Samples", f"{diagnostic['effective_samples']:d}")
 
     console.print(table)
+
+def group_rv(x:np.ndarray, b:int)-> np.ndarray:
+    """Group the input data into blocks of size b and return the sum of each block."""
+    indices = np.arange(b, len(x) - b, b, dtype=int)
+    blocks = np.array_split(x, indices)
+    return np.array([block.sum() for block in blocks])
+
+def empirical_scgf(x: np.ndarray, k:np.ndarray, b:int = 100):
+    """Compute the empirical scaled cumulant generating function (SCGF) of the input data."""
+    blocks = group_rv(x, b)
+    scgf = np.zeros(k.shape)
+    for i, k_val in enumerate(k): # potentially parallelize
+        scgf[i] = np.log(np.mean(np.exp(k_val * blocks))) / b
+    return scgf
+
+
+def empirical_rate_func(x: np.ndarray, k:np.ndarray, b:int = 100):
+    """Compute the empirical rate function of the input data."""
+    blocks = group_rv(x, b)
+    scgf = np.zeros_like(k)
+    scgf_prime = np.zeros_like(k)
+    for i, k_val in enumerate(k): # potentially parallelize
+        avg = np.mean(np.exp(k_val * blocks))
+        scgf[i] = np.log(avg) / b
+        scgf_prime[i] = np.mean(blocks * np.exp(k_val * blocks)) / avg / b
+    I_k = k * scgf_prime - scgf
+    sort_ind = np.argsort(scgf_prime)
+    return  scgf_prime, scgf_prime[sort_ind], I_k[sort_ind]
+    
