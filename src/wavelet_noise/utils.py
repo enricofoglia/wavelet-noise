@@ -183,7 +183,9 @@ def parse_beamforming_name(file_name):
     # Convert wind speed: percentage to m/s (multiply by 1.14)
     wind_speed = float(wind_percent) * VELOCITY_FACTOR
 
-    rmp_numbers = RMP_CONVERT.get(rmp_code.strip(), [996, 997, 998, 999]) # default unknown RMPs 
+    rmp_numbers = RMP_CONVERT.get(
+        rmp_code.strip(), [996, 997, 998, 999]
+    )  # default unknown RMPs
 
     notape = "notape" in file_name
 
@@ -203,7 +205,7 @@ def read_beamforming_case(file_path: os.PathLike) -> Case:
     ----------
     file_path : os.PathLike
         Path to the HDF5 file containing the beamforming data.
-    
+
     Returns
     -------
     Case

@@ -412,9 +412,10 @@ def main():
             os.path.join(config["data_dir"], config["case_name"]),
             config["rmp_index"],
         )
-        wn.stats.display_diagnostics(data.rmp[:, config["rmp_index"]], dt=1.0 / data.fs[0], corr_threshold=0.0)
+        wn.stats.display_diagnostics(
+            data.rmp[:, config["rmp_index"]], dt=1.0 / data.fs[0], corr_threshold=0.0
+        )
         perform_analysis(data, config)
-
 
 
 if __name__ == "__main__":
