@@ -9,6 +9,13 @@ from wavelet_noise.wavelet import coherent_vortex_extraction
 from surd_states import surd
 from surd_states import it_tools as it
 
+plt.style.use("style.mplstyle")
+my_colors ={
+    "coherent": "#1A5B5B",
+    "incoherent": "#F4AB5C",
+    "synergistic": "#ACC8BE",
+
+}
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--file_path", type=str, help="Path to the beamforming case file.")
@@ -19,6 +26,7 @@ def _main():
     case = read_beamforming_case(args.file_path)
     mic = case.microphones[:, 29]
     signal = case.rmp[:, -1]
+    time = case.time
 
     # CVE
     cve = coherent_vortex_extraction(
@@ -33,7 +41,6 @@ def _main():
     hydro, noise = cve.signal, cve.noise
 
     X = np.stack([mic, hydro, noise], axis=0)
-    nvars = X.shape[0]
 
     # compute bins for histogram
     nbins = 25
@@ -45,55 +52,69 @@ def _main():
         bins = np.linspace(-max_abs, max_abs + bin_width, nbins + 1)
         bins_list.append(bins)
 
+       
+# === Causality analysis across lags ===
     # apply time delay to microphone signal
-    delay = 1.45 / 343.0
-    nlag = np.argmin(np.abs(case.time - delay))
+    sound_speed = np.sqrt(1.4 * 287.05 * (273.15 + 22))  # Speed of sound at 22 C
+    delay = 1.45 / sound_speed
+    sound_lag = int(delay / (time[1] - time[0]))
     print(
-        f"Applied time delay of {delay:.4f} seconds, corresponding to {nlag} samples at fs={case.fs[0]:.2f} Hz."
+        f"Propagation delay based on microphone distance and speed of sound: {delay:.4f} seconds."
     )
 
-    Rd_results, Sy_results, mi_results, info_leak_results = ({}, {}, {}, {})
-    rd_states_results, u_states_results, sy_states_results = ({}, {}, {})
-    _fig, axs = plt.subplots(
-        nvars,
-        2,
-        figsize=(10, 2.6 * nvars),
-        gridspec_kw={"width_ratios": [nvars * 20, 1]},
+    # Select delta T
+    max_lag = sound_lag * 2
+    nlags_range = range(1, max_lag, 1)
+    num_lags = len(nlags_range)
+    unique_lag = np.zeros((num_lags,2), dtype=np.float64)
+    syn_lag = np.zeros(num_lags, dtype=np.float64)
+
+    for n_idx, nlag in enumerate(nlags_range):
+        _Y = np.vstack([X[0, nlag:], X[1:, :-nlag]])
+        _hist, _ = np.histogramdd(
+            _Y.T, bins=[bins_list[0], bins_list[1], bins_list[2]]
+        )
+        I_R, I_S, MI, _info_leak, *_ = surd.surd_states(_hist)  # Prepare lagged joint data
+        H = it.entropy_nvars(_hist, (0,))
+        unique_lag[n_idx, 0] = I_R[(1,)] / H
+        unique_lag[n_idx, 1] = I_R[(2,)] / H
+        syn_lag[n_idx] = I_S[(1,2)] / H
+    _fig, ax = plt.subplots()
+    ax.plot(time[nlags_range], unique_lag[:, 0], label="Unique coherent", color=my_colors["coherent"])
+    ax.plot(time[nlags_range], unique_lag[:, 1], label="Unique incoherent", color=my_colors["incoherent"])
+    ax.plot(time[nlags_range], syn_lag, label="Synergistic", color=my_colors["synergistic"])
+    ax.grid()
+    ax.set_xlabel(r"$\Delta t$ (s)")
+    ax.set_ylabel("Normalized Information")
+    ax.set_xlim(0, time[max_lag])
+    ax.legend()
+    plt.tight_layout()
+
+    # get best time lag based on unique causality to hydrodynamic signal
+    best_idx = np.argmax(unique_lag[:, 0])
+    nlag = nlags_range[best_idx]
+    print(f"Best time lag for unique causality to hydrophone signal: {nlag} samples, corresponding to {time[nlag]:.4f} seconds.")
+
+    _fig, ax = plt.subplots(figsize=(10, 4))
+    print(f"INFORMATION FLUX FOR MICROPHONE SIGNAL")
+    Y = np.vstack([X[0, nlag:], X[1:, :-nlag]])
+    hist, _ = np.histogramdd(
+        Y.T, bins=[bins_list[0], bins_list[1], bins_list[2]]
     )
-    for _i in range(nvars):
-        print(f"INFORMATION FLUX FOR SIGNAL {_i + 1}")
-        Y = np.vstack([X[_i, nlag:], X[:, :-nlag]])
-        hist, bins_1 = np.histogramdd(
-            Y.T, bins=[bins_list[_i], bins_list[0], bins_list[1], bins_list[2]]
-        )
-        Rd, Sy, mi, info_leak, rd_states, u_states, sy_states = surd.surd_states(hist)
-        surd.nice_print(Rd, Sy, mi, info_leak)
-        _ = surd.plot(Rd, Sy, info_leak, axs[_i, :], nvars, threshold=-0.01)
-        axs[_i, 0].set_title(
-            f"${{\\Delta I}}_{{(\\cdot) \\rightarrow {_i + 1}}} / I \\left(Q_{_i + 1}^+ ; \\mathrm{{\\mathbf{{Q}}}} \\right)$",
-            pad=12,
-        )
-        axs[_i, 1].set_title(
-            f"$\\frac{{{{\\Delta I}}_{{\\mathrm{{leak}} \\rightarrow {_i + 1}}}}}{{H \\left(Q_{_i + 1}^+ \\right)}}$",
-            pad=20,
-        )
-        axs[_i, 0].set_xticklabels(
-            axs[_i, 0].get_xticklabels(),
-            fontsize=18,
-            rotation=60,
-            ha="right",
-            rotation_mode="anchor",
-        )
-        axs[_i, 0].set_yticks([0, 0.5])
-        axs[_i, 0].set_ylim([0, 0.5])
-        Rd_results[_i + 1] = Rd
-        Sy_results[_i + 1] = Sy
-        mi_results[_i + 1] = mi
-        info_leak_results[_i + 1] = info_leak
-        rd_states_results[_i + 1] = rd_states
-        u_states_results[_i + 1] = u_states
-        sy_states_results[_i + 1] = sy_states
-    plt.tight_layout(w_pad=-12, h_pad=1)
+    Rd, Sy, mi, info_leak, rd_states, u_states, sy_states = surd.surd_states(hist)
+    surd.nice_print(Rd, Sy, mi, info_leak)
+
+    heights = np.array([Rd[(1,2)], Rd[(1,)], Rd[(2,)], Sy[(1,2)]])
+    heights /= sum(heights)  
+    labels = ["Redundant", "Unique coherent", "Unique incoherent", "Synergistic"]
+    ax.bar(labels, heights, 
+           color=["gray", my_colors["coherent"], my_colors["incoherent"], my_colors["synergistic"]],
+           hatch=["", "/", "\\", "X"],
+            lw=2,  edgecolor="black")
+    ax.set_ylabel("Information Fraction")
+
+    plt.tight_layout()
+
     plt.show()
 
 

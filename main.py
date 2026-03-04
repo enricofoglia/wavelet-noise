@@ -160,8 +160,13 @@ def perform_analysis(data: wn.utils.Case, config: dict):
         sg.correlate(signal_micro, cve.noise, mode="full") / len(signal_micro) ** 2
     )
 
+    max_corr = np.argmax(np.abs(correlation_hydro))
     time_lags = (
         sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full") / data.fs
+    )
+    best_lag = time_lags[max_corr]
+    print(
+        f"Maximum correlation between microphone and hydrodynamic component: {correlation_hydro[max_corr]:.4e} at lag {best_lag:.6f} seconds."
     )
     c0 = config["sound_speed"]
     L = config["microphone_distance"]
