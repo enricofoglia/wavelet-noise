@@ -125,7 +125,7 @@ def plot_psd_rmp(data_dir:str,rmp_location:int,rmp_time_trace:np.ndarray):
     plt.tight_layout()
     plt.savefig(os.path.join(image_path,f'rmp{rmp_location}_psd.pdf'), dpi=600)
 
-def sherfwh_timetrace(data_dir:str, file_name:str):
+def sherfwh_timetrace(data_dir:str, *files):
     
     '''
     This function generates the time trace of the Sherfwh signal.\n 
@@ -145,14 +145,16 @@ def sherfwh_timetrace(data_dir:str, file_name:str):
         The time trace of the Sherfwh signal.
     '''
     
-    data = pd.read_csv(os.path.join(data_dir, file_name), delimiter='\s+', skiprows=1, names=['iter', 'time', 'pressure', 'nbcontrib'])
-    time = data['time']
-    pressure = data['pressure']
-    contribution = data['nbcontrib']
-    filtered = np.where(contribution!=0)[0]
-
-    time = time[filtered[0]:filtered[-1]+1]
-    pressure = pressure[filtered[0]:filtered[-1]+1]
+    time = []
+    pressure = []
+    
+    for file in files:
+        data = pd.read_csv(os.path.join(data_dir, file), delimiter='\s+', skiprows=4, names=['time', 'pressure'])
+        time.append(data['time'].values)
+        pressure.append(data['pressure'].values)
+        
+    time = np.concatenate(time)
+    pressure = np.concatenate(pressure)
     
     return np.array((time, pressure))
         
@@ -327,3 +329,4 @@ def cp_plot(data_dir:str, file:str, p_char:float, rho_char:float, u_inf:float):
     plt.ylabel('$-C_p$')
     plt.tight_layout()
     plt.savefig(os.path.join(image_path,f'{file.split(".")[0]}.pdf'), dpi=600)
+
