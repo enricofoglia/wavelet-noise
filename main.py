@@ -161,8 +161,13 @@ def perform_analysis(data: wn.utils.Case, config: dict):
         / cve.noise.std()
     )
 
+    max_corr = np.argmax(np.abs(correlation_hydro))
     time_lags = (
         sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full") / data.fs
+    )
+    best_lag = time_lags[max_corr]
+    print(
+        f"Maximum correlation between microphone and hydrodynamic component: {correlation_hydro[max_corr]:.4e} at lag {best_lag:.6f} seconds."
     )
     c0 = config["sound_speed"]
     L = config["microphone_distance"]
@@ -513,7 +518,6 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.set_facecolor("0.9")
     plt.savefig(os.path.join(config["out_dir"], "wiener_coherence_comparison.svg"))
     plt.close("all")
-
 
 
 

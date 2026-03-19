@@ -17,6 +17,7 @@ dependencies = [
     "pyyaml>=6.0.3",
     "rich>=14.2.0",
     "scipy>=1.16.0",
+    "surd-states",
     "tqdm>=4.67.1",
 ]
 
@@ -39,3 +40,6 @@ line-length = 88
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.uv.sources]
+surd-states = { path = "../../../../3A/04_random_stuff/surd/SURD-states", editable = true }

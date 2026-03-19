@@ -20,13 +20,14 @@ class CVEResults:
     signal: np.ndarray
     noise: np.ndarray
     incoherent_coeffs_history: list
+    success: bool 
 
 
 def dwt(
     data: np.ndarray,
     wavelet: str = "db4",
     mode: str = "constant",
-    level: int = None,
+    level: int | None = None,
     fs: float = 1.0,
     axis: int = -1,
     type: str = "list",
@@ -68,7 +69,7 @@ def dwt(
     if level is None:
         level = pw.dwt_max_level(len(data), filter_len=wavelet)
 
-    freq = pw.scale2frequency(wavelet=wavelet, scale=2.0 ** np.arange(1, level - 1))
+    freq = pw.scale2frequency(wavelet=wavelet, scale=2.0 ** np.arange(1, level - 1)) 
     dw = pw.wavedec(data, wavelet=wavelet, mode=mode, level=level, axis=axis)
 
     if not return_approx:
@@ -120,13 +121,13 @@ def cwt(
 
 
 def coherent_vortex_extraction(
-    data: np.array,
+    data: np.ndarray,
     wavelet: str,
     max_iter=20,
     tol: int = 1,
     use_approx: bool = True,
     **kwargs,
-) -> Tuple[np.array, np.array]:
+) -> CVEResults:
     """Separate the coherent and incoherent parts of a signal.
 
     This function uses the discrete wavelet tranform and the adaptive
@@ -201,7 +202,16 @@ def coherent_vortex_extraction(
                 "No coherent vortices found. Consider adjusting the "
                 "tolerance or wavelet parameters."
             )
-            return np.array([]), np.array([])
+            return CVEResults(
+                iterations=it,
+                final_threshold=T,
+                num_coherent_coeffs=N - Ni_new,
+                num_incoherent_coeffs=Ni,
+                signal=np.array([]),
+                noise=np.array([]),
+                incoherent_coeffs_history=Ni_history,
+                success=False
+            )
 
     _, coef_i = dwt(data, wavelet=wavelet, mode="periodic", axis=0, type="list")
     coef_i[1:] = [np.where(np.abs(c) < T, c, 0.0) for c in coef_i[1:]]
@@ -217,6 +227,7 @@ def coherent_vortex_extraction(
         signal=signal,
         noise=noise,
         incoherent_coeffs_history=Ni_history,
+        success=True
     )
     return results
 
