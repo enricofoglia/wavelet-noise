@@ -174,7 +174,20 @@ def display_diagnostics(
 
 
 def group_rv(x: np.ndarray, b: int) -> np.ndarray:
-    """Group the input data into blocks of size b and return the sum of each block."""
+    """Group the input data into blocks of size b and return the sum of each block.
+    
+    Arguments
+    ---------
+    x: np.ndarray
+        input data of size ``n``
+    b: int
+        block size
+
+    Returns
+    -------
+    np.ndarray
+        Blocks array of size ``n//b``
+    """
     if b <= 0:
         raise ValueError("Block size must be a positive integer.")
     if b == 1:
@@ -184,8 +197,32 @@ def group_rv(x: np.ndarray, b: int) -> np.ndarray:
     return np.array([block.sum() for block in blocks])
 
 
-def empirical_scgf(x: np.ndarray, k: np.ndarray, b: int = 100, derivative: bool = False):
-    """Compute the empirical scaled cumulant generating function (SCGF) of the input data."""
+def empirical_scgf(x: np.ndarray, k: np.ndarray, b: int = 1, derivative: bool = False):
+    r"""Compute the empirical scaled cumulant generating function (SCGF) of the input data.
+    
+    Compute cumulant generating function of the input data:
+
+    .. math::
+        \lambda(k) = \log \mathbb{E} \left(e^{kX} \right)
+
+    For large deviation analysis of time series, it is sometimes necessary to perform a block-sum of the data to enforce independence. For examples a series :math:`X_1,X_2,\dots X_n` might not be composed of independent samples, but the series :math:`Y_1,Y_2,\dots,Y_m` where :math:`Y_i = \sum_{j=bi}^{b(i+1)}X_j` is, provided that :math:`b` is large enough.
+
+    Arguments
+    ---------
+    x: np.ndarray
+        input data
+    k: np.ndarray
+        input :math:`k` values where the SCGF will be computed
+    b: int, optional
+        Block size. Default is 1.
+    derivative: bool, optional
+        If True, return the derivative of the SCGF. Default False
+
+    Returns
+    -------
+    np.ndarray
+        Value of the SCGF for every value of k.
+    """
     blocks = group_rv(x, b)
     scgf = np.zeros(k.shape)
     scgf_prime = np.zeros(k.shape)
@@ -199,8 +236,33 @@ def empirical_scgf(x: np.ndarray, k: np.ndarray, b: int = 100, derivative: bool 
     return scgf
 
 
-def empirical_rate_func(x: np.ndarray, k: np.ndarray, b: int = 100):
-    """Compute the empirical rate function of the input data."""
+def empirical_rate_func(x: np.ndarray, k: np.ndarray, b: int = 1):
+    """Compute the empirical rate function of the input data.
+    
+    The algorithm starts by computing the cumulant generating function of the data, :math:`\lambda(k)`, using :func:`empirical_scgf`. Then, the rate function :math:`I(s)` is computed using the Legendre-Flechet transform:
+
+    .. math::
+        I(s(k)) = k s(k) - \lambda(k)
+
+    where :math:`s(k) = \lambda'(k)`. 
+
+    .. caution::
+        This algorithm only works under the hypothesis of the Gärtner-Ellis theorem, that is that the SCGF is everywhere differentiable, so that the rate function can be calculated as the Legendre transform of :math:`\lambda`. If that is not the case, the algorithm will, at best, return the convex envelope of :math:`I(s)`
+
+    Arguments
+    ---------
+    x: np.ndarray
+        input data
+    k: np.ndarray
+        input :math:`k` values where the SCGF will be computed
+    b: int, optional
+        Block size. Default is 1.
+
+    Returns
+    -------
+    np.ndarray
+        Value of the rate function for every value of k.
+    """
     blocks = group_rv(x, b)
     scgf = np.zeros_like(k)
     scgf_prime = np.zeros_like(k)
