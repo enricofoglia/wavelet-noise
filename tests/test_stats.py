@@ -47,12 +47,3 @@ def test_compute_diagnostic():
 
     assert np.isclose(diagnostics1D["skewness"], 0.0, atol=10 / np.sqrt(size))
     assert np.isclose(diagnostics1D["kurtosis"], 0.0, atol=10.0 / np.sqrt(size))
-
-
-def test_windowed_autocorrelation():
-    size = 10000
-    data1D = np.random.normal(loc=0.0, scale=1.0, size=size)
-    autocorr = stats.windowed_autocorrelation(data1D, nperseg=1000, noverlap=500)
-    assert autocorr.shape[0] == 1000
-    assert np.isclose(autocorr[0], 1.0, atol=1e-2)
-    assert np.all(autocorr[1:] < 0.2)

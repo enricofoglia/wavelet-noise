@@ -1,6 +1,6 @@
 axes.titlesize : 18
 axes.labelsize : 16
-lines.linewidth : 2
+lines.linewidth : 3
 lines.markersize : 10
 xtick.labelsize : 14
 ytick.labelsize : 14
@@ -8,3 +8,4 @@ text.usetex : True
 font.family : serif
 font.serif : Computer Modern Roman
 font.size : 14
+savefig.bbox : tight 

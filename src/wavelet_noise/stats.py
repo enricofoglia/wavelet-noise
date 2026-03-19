@@ -109,40 +109,6 @@ def conditioning(
     return conditioned_signal
 
 
-def windowed_autocorrelation(
-    data: np.ndarray,
-    nperseg: int = 256,
-    noverlap: int | None = None,
-    return_std: bool = False,
-) -> np.ndarray:
-    """ """
-    if noverlap is None:
-        noverlap = nperseg // 2
-
-    n = data.shape[0]
-    step = nperseg - noverlap
-    n_windows = (n - noverlap) // step
-
-    correlations = []
-    for i in range(n_windows):
-        start = i * step
-        end = start + nperseg
-        segment = data[start:end]
-        segment_avg = np.mean(segment, axis=0)
-        segment_var = np.var(segment, axis=0)
-        autocorr = sg.correlate(
-            segment - segment_avg,
-            segment - segment_avg,
-            mode="full",
-        )[nperseg - 1 :] / (nperseg * segment_var)
-        correlations.append(autocorr)
-
-    correlations = np.array(correlations)
-    if return_std:
-        return correlations.mean(axis=0), correlations.std(axis=0)
-    return correlations.mean(axis=0)
-
-
 def compute_integral_time_scale(
     data: np.ndarray, dt: float = 1.0, corr_threshold: float | None = 0.0
 ) -> float:
@@ -150,18 +116,20 @@ def compute_integral_time_scale(
     Compute the integral time scale of the input signal.
     """
     n = data.shape[0]
-    autocorr = windowed_autocorrelation(data, nperseg=n // 4, noverlap=n // 8)
+    autocorr = (
+        sg.correlate(data, data, mode="full")[n - 1 :] / n / data.var()
+    )  # biased autocorrelation
 
     if corr_threshold is None:
         idx = n
     else:
-        idx = np.nonzero(autocorr < corr_threshold)[0][0] - 1
-        if idx < 0:
+        idx = np.nonzero(autocorr < corr_threshold)[0][0]
+        if idx < 1:
             raise ValueError(
                 "No value of the autocorrelation is above the correlation threshold."
             )
 
-    integral_time_scale = integrate.simpson(autocorr[:idx], dx=dt)
+    integral_time_scale = integrate.trapezoid(autocorr[:idx], dx=dt)
     return integral_time_scale
 
 
@@ -181,6 +149,7 @@ def compute_diagnostics(
         "kurtosis": kurt,
         "integral_time_scale": t_int,
         "effective_samples": n_eff,
+        "samples": data.shape[0]
     }
 
 
@@ -200,5 +169,107 @@ def display_diagnostics(
     table.add_row("Time step", f"{dt:.2e}")
     table.add_row("Int. Time Scale", f"{diagnostic['integral_time_scale']:.2e}")
     table.add_row("Eff. Samples", f"{diagnostic['effective_samples']:d}")
-
+    table.add_row("Total Samples", f"{diagnostic['samples']:d}")
     console.print(table)
+
+
+def group_rv(x: np.ndarray, b: int) -> np.ndarray:
+    """Group the input data into blocks of size b and return the sum of each block.
+    
+    Arguments
+    ---------
+    x: np.ndarray
+        input data of size ``n``
+    b: int
+        block size
+
+    Returns
+    -------
+    np.ndarray
+        Blocks array of size ``n//b``
+    """
+    if b <= 0:
+        raise ValueError("Block size must be a positive integer.")
+    if b == 1:
+        return x
+    indices = np.arange(b, len(x) - b, b, dtype=int)
+    blocks = np.array_split(x, indices)
+    return np.array([block.sum() for block in blocks])
+
+
+def empirical_scgf(x: np.ndarray, k: np.ndarray, b: int = 1, derivative: bool = False):
+    r"""Compute the empirical scaled cumulant generating function (SCGF) of the input data.
+    
+    Compute cumulant generating function of the input data:
+
+    .. math::
+        \lambda(k) = \log \mathbb{E} \left(e^{kX} \right)
+
+    For large deviation analysis of time series, it is sometimes necessary to perform a block-sum of the data to enforce independence. For examples a series :math:`X_1,X_2,\dots X_n` might not be composed of independent samples, but the series :math:`Y_1,Y_2,\dots,Y_m` where :math:`Y_i = \sum_{j=bi}^{b(i+1)}X_j` is, provided that :math:`b` is large enough.
+
+    Arguments
+    ---------
+    x: np.ndarray
+        input data
+    k: np.ndarray
+        input :math:`k` values where the SCGF will be computed
+    b: int, optional
+        Block size. Default is 1.
+    derivative: bool, optional
+        If True, return the derivative of the SCGF. Default False
+
+    Returns
+    -------
+    np.ndarray
+        Value of the SCGF for every value of k.
+    """
+    blocks = group_rv(x, b)
+    scgf = np.zeros(k.shape)
+    scgf_prime = np.zeros(k.shape)
+    for i, k_val in enumerate(k):  # potentially parallelize
+        avg = np.mean(np.exp(k_val * blocks))
+        scgf[i] = np.log(avg) / b
+        scgf_prime[i] = np.mean(blocks * np.exp(k_val * blocks)) / avg / b
+
+    if derivative:
+        return scgf_prime
+    return scgf
+
+
+def empirical_rate_func(x: np.ndarray, k: np.ndarray, b: int = 1):
+    """Compute the empirical rate function of the input data.
+    
+    The algorithm starts by computing the cumulant generating function of the data, :math:`\lambda(k)`, using :func:`empirical_scgf`. Then, the rate function :math:`I(s)` is computed using the Legendre-Flechet transform:
+
+    .. math::
+        I(s(k)) = k s(k) - \lambda(k)
+
+    where :math:`s(k) = \lambda'(k)`. 
+
+    .. caution::
+        This algorithm only works under the hypothesis of the Gärtner-Ellis theorem, that is that the SCGF is everywhere differentiable, so that the rate function can be calculated as the Legendre transform of :math:`\lambda`. If that is not the case, the algorithm will, at best, return the convex envelope of :math:`I(s)`
+
+    Arguments
+    ---------
+    x: np.ndarray
+        input data
+    k: np.ndarray
+        input :math:`k` values where the SCGF will be computed
+    b: int, optional
+        Block size. Default is 1.
+
+    Returns
+    -------
+    np.ndarray
+        Value of the rate function for every value of k.
+    """
+    blocks = group_rv(x, b)
+    scgf = np.zeros_like(k)
+    scgf_prime = np.zeros_like(k)
+    for i, k_val in enumerate(k):  # potentially parallelize
+        avg = np.mean(np.exp(k_val * blocks))
+        scgf[i] = np.log(avg) / b
+        scgf_prime[i] = np.mean(blocks * np.exp(k_val * blocks)) / avg / b
+    I_k = k * scgf_prime - scgf
+    sort_ind = np.argsort(scgf_prime)
+    return scgf_prime, scgf_prime[sort_ind], I_k[sort_ind]
