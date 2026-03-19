@@ -19,9 +19,16 @@ from rich import print
 from rich.progress import track
 
 from cycler import cycler
-from pypalettes import load_cmap
 
-cmap = load_cmap("CafeTerrace")
+from pypalettes import load_cmap
+# cmap = load_cmap("CafeTerrace")
+# cmap = load_cmap("Dark")
+# cmap = load_cmap("Antique")
+# cmap = load_cmap("Lively")
+# cmap = load_cmap("Tableau_10")
+cmap = load_cmap("alger", shuffle=2)
+main_color = cmap(4)
+
 colors = [cmap(i) for i in range(cmap.N)]
 def_colors = cycler(color=colors)
 
@@ -66,13 +73,13 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     autocorr = sg.correlate(signal, signal, mode="full")[n - 1 :] / n / signal.var()
     time_lags = sg.correlation_lags(n, n, mode="full")[n - 1 :] / data.fs
     fig, ax = plt.subplots()
-    ax.plot(time_lags, autocorr)
+    ax.plot(time_lags, autocorr, color=main_color)
     ax.set_xlabel("Time lag [s]")
     ax.set_ylabel("Autocorrelation [-]")
     ax.set_title("Autocorrelation of RMP signal")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(0.0, 0.025)
-    plt.savefig(os.path.join(config["out_dir"], "autocorrelation_rmp.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "autocorrelation_rmp.svg"))
     plt.close()
 
     threshold_corr = np.linspace(0, 1, 25, endpoint=False)
@@ -87,7 +94,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
         )
         t_lag.append(time_lags[1 + idx])
     fig, ax = plt.subplots()
-    ax.plot(threshold_corr, integral_time_scale, "-o")
+    ax.plot(threshold_corr, integral_time_scale, "-o", color=main_color)
 
     ax.set_xlabel("Autocorrelation threshold [-]")
     ax.set_ylabel("Integral time scale $\Lambda_t$ [s]")
@@ -98,7 +105,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.yaxis.set_major_formatter(formatter)
     ax.grid(True, which="both", ls="--", lw=0.5)
     plt.savefig(
-        os.path.join(config["out_dir"], "itc_vs_threshold.pdf"), bbox_inches="tight"
+        os.path.join(config["out_dir"], "itc_vs_threshold.svg"), bbox_inches="tight"
     )
     plt.close("all")
 
@@ -170,7 +177,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     fig, ax = plt.subplots()
 
     ax.axvline(L / c0, color="tomato", ls="--", label=r"$t^*=L/c_0$")
-    ax.plot(time_lags, correlation_hydro)
+    ax.plot(time_lags, correlation_hydro, color=main_color)
     ax.set_xlabel("Time lag [s]")
     ax.set_ylabel(r"Cross-correlation [-]")
     ax.grid(True, which="both", ls="--", lw=0.5)
@@ -179,7 +186,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     # ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.svg"))
 
     fig, ax = plt.subplots()
     ax.plot(time_lags, correlation_signal, label="Original signal")
@@ -203,7 +210,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "correlation_comparison.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "correlation_comparison.svg"))
     plt.close("all")
 
     correlation = []
@@ -221,7 +228,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     std_correlation = np.std(correlation, axis=0)
     fig, ax = plt.subplots()
 
-    ax.plot(time_lags, avg_correlation, label="Average cross-correlation")
+    ax.plot(time_lags, avg_correlation, color=main_color,label="Average cross-correlation")
 
     ax.fill_between(
         time_lags,
@@ -241,16 +248,16 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
     plt.savefig(
-        os.path.join(config["out_dir"], "correlation_hydro_avg.pdf"),
+        os.path.join(config["out_dir"], "correlation_hydro_avg.svg"),
         bbox_inches="tight",
     )
 
     fig, ax = plt.subplots()
-    ax.plot(np.array(cve.incoherent_coeffs_history) / n, "-o")
+    ax.plot(np.array(cve.incoherent_coeffs_history) / n, "-o", color=main_color)
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Fraction of incoherent coefficients")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    plt.savefig(os.path.join(config["out_dir"], "cve_convergence.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "cve_convergence.svg"))
 
     lowcut = config["conditioning"]["bandpass_filter"]["lowcut"]
     highcut = config["conditioning"]["bandpass_filter"]["highcut"]
@@ -264,7 +271,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
     ax.set_ylim(-60, 80)
-    plt.savefig(os.path.join(config["out_dir"], "psd_original.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "psd_original.svg"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd_hydro / p_ref**2), label="Original signal")
@@ -274,7 +281,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
-    plt.savefig(os.path.join(config["out_dir"], "psd_denoised.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "psd_denoised.svg"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd_noise / p_ref**2), label="Original signal")
@@ -284,7 +291,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(20, 20e3)
-    plt.savefig(os.path.join(config["out_dir"], "psd_noise.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "psd_noise.svg"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd / p_ref**2), label="Original signal")
@@ -300,7 +307,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlim(20, 20e3)
     ax.set_ylim(-60, 80)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "psd_comparison.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "psd_comparison.svg"))
     plt.close("all")
 
     fig, ax = plt.subplots()
@@ -313,7 +320,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlim(20, 20e3)
     ax.set_ylim(-60, 40)
     plt.savefig(
-        os.path.join(config["out_dir"], f"psd_farfield_{config['micro_index'] + 1}.pdf")
+        os.path.join(config["out_dir"], f"psd_farfield_{config['micro_index'] + 1}.svg")
     )
 
     nsamples = 1000
@@ -336,7 +343,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Pressure fluctuation [Pa]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "time_signal_comparison.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "time_signal_comparison.svg"))
 
     fig, ax = plt.subplots()
     ax.hist(
@@ -388,7 +395,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylim(bottom=1e-6)
     ax.grid(True, which="both", ls="--", lw=0.5, zorder=0)
     ax.legend(loc="lower right")
-    plt.savefig(os.path.join(config["out_dir"], "pdf_comparison.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "pdf_comparison.svg"))
 
     fig, ax = plt.subplots()
     ax.hist(cve.noise, bins=100, alpha=1.0, label="Incoherent component", density=True)
@@ -396,7 +403,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Probability density")
     ax.set_yscale("log")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    plt.savefig(os.path.join(config["out_dir"], "pdf_noise.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "pdf_noise.svg"))
 
     fig, ax = plt.subplots()
     ax.semilogx(f, coherence_signal, label="Original signal")
@@ -408,7 +415,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylim(0.0, 1.0)
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.svg"))
     plt.close("all")
 
     weiner_analysis(signal, signal_micro, config, data.fs)
@@ -491,7 +498,7 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.set_ylim(-60, 80)
     ax.set_facecolor("0.9")
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "wiener_psd_comparison.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "wiener_psd_comparison.svg"))
     
     fig, ax = plt.subplots()
     ax.semilogx(f, coherence_signal, label="Original signal")
@@ -504,7 +511,7 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
     ax.set_facecolor("0.9")
-    plt.savefig(os.path.join(config["out_dir"], "wiener_coherence_comparison.pdf"))
+    plt.savefig(os.path.join(config["out_dir"], "wiener_coherence_comparison.svg"))
     plt.close("all")
 
 
