@@ -19,13 +19,14 @@ my_colors ={
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--file_path", type=str, help="Path to the beamforming case file.")
+parser.add_argument("--rmp", type=int, help="RMP index. Can be 0, 1, 2, or 3", default=0)
 
 
 def _main():
     args = parser.parse_args()
     case = read_beamforming_case(args.file_path)
     mic = case.microphones[:, 29]
-    signal = case.rmp[:, -1]
+    signal = case.rmp[:, args.rmp]
     time = case.time
 
     # CVE
@@ -109,7 +110,6 @@ def _main():
     labels = ["Redundant", "Unique coherent", "Unique incoherent", "Synergistic"]
     ax.bar(labels, heights, 
            color=["gray", my_colors["coherent"], my_colors["incoherent"], my_colors["synergistic"]],
-           hatch=["", "/", "\\", "X"],
             lw=2,  edgecolor="black")
     ax.set_ylabel("Information Fraction")
 

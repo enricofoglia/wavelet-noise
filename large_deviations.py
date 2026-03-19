@@ -24,15 +24,17 @@ parser.add_argument(
 )
 parser.add_argument("--hydro", action="store_true", help="Whether to analyze the hydrodynamic signal instead of the noise.")
 parser.add_argument("--b", type=int, help="Block size for large deviation analysis.")
+parser.add_argument("--rmp", type=int, help="RMP index. Can be 0, 1, 2, or 3", default=0)
 # colors
 my_colors = {"biennale_red": "#D21C2D"}
 
 
 def _main():
     args = parser.parse_args()
+    print(args.rmp)
     case = read_beamforming_case(args.file_path)
     mic = case.microphones[:, 29]
-    signal = case.rmp[:, -1]
+    signal = case.rmp[:, args.rmp]
 
    
     # CVE
@@ -79,9 +81,10 @@ def _main():
         return logi_s_k(k, s) * k - logi_scgf(k, s)
 
     gauss_noise = np.random.normal(loc=0.0, scale=1.0, size=noise_st.shape)
+    logi_noise = np.random.logistic(loc=0.0, scale=np.sqrt(3) / np.pi, size=noise_st.shape)
 
-    k = np.linspace(-4, 4, 250)
     k_c = np.pi / np.sqrt(3)
+    k = np.linspace(-k_c, k_c, 250)
     s_c = empirical_scgf(noise_st, np.array([k_c]), b=b, derivative=True)
     k_logi = np.linspace(-k_c, k_c, 250)[1:-1]  # avoid singularities at the endpoints
 
@@ -90,6 +93,8 @@ def _main():
 
     scgf_gauss = empirical_scgf(gauss_noise, k, b=b)
     s_k_gauss, s_gauss, I_gauss = empirical_rate_func(gauss_noise, k, b=b)
+    scgf_logi = empirical_scgf(logi_noise, k_logi, b=b)
+    s_k_logi, s_logi, I_logi = empirical_rate_func(logi_noise, k_logi, b=b)
 
     fig, ax = plt.subplots(1, 3, figsize=(12, 4), layout="tight")
     ax[0].plot(k, scgf, color="k")
@@ -98,6 +103,9 @@ def _main():
     )
     ax[0].plot(
         k, scgf_gauss, ls="--", color="k", alpha=0.5, label="Gaussian SCGF (emp)"
+    )
+    ax[0].plot(
+        k_logi, scgf_logi, label="Logistic SCGF (emp)"
     )
     ax[0].plot(
         k_logi, logi_scgf(k_logi), ls=":", color="k", alpha=1.0, label="Logistic SCGF"
@@ -121,6 +129,7 @@ def _main():
     ax[1].plot(k, s_k, color="k")
     ax[1].plot(k, gaussian_s_k(k), ls="--", color="k", alpha=1.0, label="Gaussian s(k)")
     ax[1].plot(k, s_k_gauss, ls="--", color="k", alpha=0.5, label="Gaussian s(k) (emp)")
+    ax[1].plot(k_logi, s_k_logi, label="Logistic s(k) (emp)")
     ax[1].plot(
         k_logi, logi_s_k(k_logi), ls=":", color="k", alpha=1.0, label="Logistic s(k)"
     )
@@ -157,6 +166,11 @@ def _main():
         color="k",
         alpha=0.5,
         label="Gaussian rate function (emp)",
+    )
+    logi_emp = ax[2].plot(
+        s_logi,
+        I_logi,
+        label="Logistic rate function (emp)",
     )
     sort_ind = np.argsort(logi_s_k(k_logi))
     s_logi = logi_s_k(k_logi)[sort_ind]
@@ -200,18 +214,19 @@ def _main():
         os.path.join(args.fig_dir, "large_deviations.pdf"), dpi=300, bbox_inches="tight"
     )
 
-    bins = np.linspace(-3, 3, 50)
+    bins = np.linspace(-5, 5, 100)
     hist, _ = np.histogram(noise_st, bins=bins, density=True)
     I_hist = -np.log(hist)
     I_hist -= I_hist.min()  # shift so that the minimum is at zero
 
     fig, ax = plt.subplots(figsize=(6, 4), layout="tight")
-    ax.plot(bins[:-1], I_hist, color="k", label="Empirical rate function (hist)")
-    ax.plot(s, I, color="k", ls="--", label="Empirical rate function (SCGF)")
-    ax.plot(s_logi, I_logi, ls=":", color="k", alpha=1.0, label="Logistic rate function")
+    ax.plot(bins[:-1], I_hist, ls="--",color="k", label="Empirical rate function (hist)")
+    ax.plot(s_logi, I_logi, ls="-", linewidth=5, color="k", alpha=0.5, label="Logistic rate function")
+    ax.plot(s, I, color="k", ls="-", label="Empirical rate function (SCGF)")
     ax.set_xlabel(r"$s$")
     ax.set_ylabel(r"$\widehat{I}_L(s)$")
     ax.set_xlim(min(s), max(s))
+    # ax.set_xlim(-6,6)
     ax.set_ylim(-0.1, max(I) * 1.1)
     ax.legend()
     ax.grid()
@@ -268,6 +283,13 @@ def _main():
         bbox_inches="tight",
     )
 
+    fig, ax = plt.subplots()
+    ax.hist(noise_st, bins=bins, density=False, color="k", alpha = 0.1, histtype="stepfilled")
+    ax.hist(noise_st, bins=bins, density=False, color="k", alpha = 1.0, histtype="step", linewidth=3)
+    ax.set_ylabel("Count")
+    ax.set_xlabel(r"$p_{\mathrm{noise}}$ (standardized)")
+    ax.set_yscale("log")
+    ax.grid(which="major", axis="y")
     plt.show()
 
 
