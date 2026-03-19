@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -611,6 +611,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pypalettes"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/2c/14c7e4b7c61cb26a003e8c8979a24949522270668faf1e3bc6b26e7a8ca8/pypalettes-0.2.1.tar.gz", hash = "sha256:f086b8c3275cf36472216532f4a4c80ebc1a6e639ac5fff9609f94c4123e44c1", size = 14525384, upload-time = "2025-11-09T20:22:51.923Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/91/fb/3380832944eb4552b5873dd8c75095250356edfadf1156bd562da04fc793/pypalettes-0.2.1-py3-none-any.whl", hash = "sha256:5b26fc6e056212e402cf3e6338165ac16e1b19c000f882894d21f2de5bf79af0", size = 367310, upload-time = "2025-11-09T20:22:50.498Z" },
+]
+
+[[package]]
 name = "pymp-pypi"
 version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1128,9 +1137,11 @@ name = "wavelet-noise"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cycler" },
     { name = "h5py" },
     { name = "matplotlib" },
     { name = "numpy" },
+    { name = "pypalettes" },
     { name = "pywavelets" },
     { name = "pyyaml" },
     { name = "rich" },
@@ -1148,9 +1159,11 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cycler", specifier = ">=0.12.1" },
     { name = "h5py", specifier = ">=3.14.0" },
     { name = "matplotlib", specifier = ">=3.10.3" },
     { name = "numpy", specifier = ">=2.3.1" },
+    { name = "pypalettes", specifier = ">=0.2.1" },
     { name = "pywavelets", specifier = ">=1.8.0" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "rich", specifier = ">=14.2.0" },

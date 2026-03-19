@@ -109,40 +109,6 @@ def conditioning(
     return conditioned_signal
 
 
-def windowed_autocorrelation(
-    data: np.ndarray,
-    nperseg: int = 256,
-    noverlap: int | None = None,
-    return_std: bool = False,
-) -> np.ndarray:
-    """ """
-    if noverlap is None:
-        noverlap = nperseg // 2
-
-    n = data.shape[0]
-    step = nperseg - noverlap
-    n_windows = (n - noverlap) // step
-
-    correlations = []
-    for i in range(n_windows):
-        start = i * step
-        end = start + nperseg
-        segment = data[start:end]
-        segment_avg = np.mean(segment, axis=0)
-        segment_var = np.var(segment, axis=0)
-        autocorr = sg.correlate(
-            segment - segment_avg,
-            segment - segment_avg,
-            mode="full",
-        )[nperseg - 1 :] / (nperseg * segment_var)
-        correlations.append(autocorr)
-
-    correlations = np.array(correlations)
-    if return_std:
-        return correlations.mean(axis=0), correlations.std(axis=0)
-    return correlations.mean(axis=0)
-
-
 def compute_integral_time_scale(
     data: np.ndarray, dt: float = 1.0, corr_threshold: float | None = 0.0
 ) -> float:
@@ -150,18 +116,20 @@ def compute_integral_time_scale(
     Compute the integral time scale of the input signal.
     """
     n = data.shape[0]
-    autocorr = windowed_autocorrelation(data, nperseg=n // 4, noverlap=n // 8)
+    autocorr = (
+        sg.correlate(data, data, mode="full")[n - 1 :] / n / data.var()
+    )  # biased autocorrelation
 
     if corr_threshold is None:
         idx = n
     else:
-        idx = np.nonzero(autocorr < corr_threshold)[0][0] - 1
-        if idx < 0:
+        idx = np.nonzero(autocorr < corr_threshold)[0][0]
+        if idx < 1:
             raise ValueError(
                 "No value of the autocorrelation is above the correlation threshold."
             )
 
-    integral_time_scale = integrate.simpson(autocorr[:idx], dx=dt)
+    integral_time_scale = integrate.trapezoid(autocorr[:idx], dx=dt)
     return integral_time_scale
 
 
@@ -181,6 +149,7 @@ def compute_diagnostics(
         "kurtosis": kurt,
         "integral_time_scale": t_int,
         "effective_samples": n_eff,
+        "samples": data.shape[0]
     }
 
 
@@ -200,7 +169,7 @@ def display_diagnostics(
     table.add_row("Time step", f"{dt:.2e}")
     table.add_row("Int. Time Scale", f"{diagnostic['integral_time_scale']:.2e}")
     table.add_row("Eff. Samples", f"{diagnostic['effective_samples']:d}")
-
+    table.add_row("Total Samples", f"{diagnostic['samples']:d}")
     console.print(table)
 
 
