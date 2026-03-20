@@ -20,7 +20,7 @@ class CVEResults:
     signal: np.ndarray
     noise: np.ndarray
     incoherent_coeffs_history: list
-    success: bool 
+    success: bool
 
 
 def dwt(
@@ -69,7 +69,7 @@ def dwt(
     if level is None:
         level = pw.dwt_max_level(len(data), filter_len=wavelet)
 
-    freq = pw.scale2frequency(wavelet=wavelet, scale=2.0 ** np.arange(1, level - 1)) 
+    freq = pw.scale2frequency(wavelet=wavelet, scale=2.0 ** np.arange(1, level - 1))
     dw = pw.wavedec(data, wavelet=wavelet, mode=mode, level=level, axis=axis)
 
     if not return_approx:
@@ -210,7 +210,7 @@ def coherent_vortex_extraction(
                 signal=np.array([]),
                 noise=np.array([]),
                 incoherent_coeffs_history=Ni_history,
-                success=False
+                success=False,
             )
 
     _, coef_i = dwt(data, wavelet=wavelet, mode="periodic", axis=0, type="list")
@@ -227,7 +227,7 @@ def coherent_vortex_extraction(
         signal=signal,
         noise=noise,
         incoherent_coeffs_history=Ni_history,
-        success=True
+        success=True,
     )
     return results
 

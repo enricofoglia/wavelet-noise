@@ -21,6 +21,7 @@ from rich.progress import track
 from cycler import cycler
 
 from pypalettes import load_cmap
+
 # cmap = load_cmap("CafeTerrace")
 # cmap = load_cmap("Dark")
 # cmap = load_cmap("Antique")
@@ -233,7 +234,9 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     std_correlation = np.std(correlation, axis=0)
     fig, ax = plt.subplots()
 
-    ax.plot(time_lags, avg_correlation, color=main_color,label="Average cross-correlation")
+    ax.plot(
+        time_lags, avg_correlation, color=main_color, label="Average cross-correlation"
+    )
 
     ax.fill_between(
         time_lags,
@@ -464,6 +467,7 @@ def main():
         )
         perform_analysis(data, config)
 
+
 def weiner_analysis(signal, micro, config, fs=1.0):
     hydro = sg.wiener(signal)
     noise = signal - hydro
@@ -482,7 +486,6 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     coherence_hydro = sg.coherence(micro, hydro, **welch_kwargs)[1]
     coherence_noise = sg.coherence(micro, noise, **welch_kwargs)[1]
     coherence_signal = sg.coherence(micro, signal, **welch_kwargs)[1]
-
 
     p_ref = config["p_ref"]
     lowcut = config["conditioning"]["bandpass_filter"]["lowcut"]
@@ -504,7 +507,7 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.set_facecolor("0.9")
     ax.legend(loc="upper right")
     plt.savefig(os.path.join(config["out_dir"], "wiener_psd_comparison.svg"))
-    
+
     fig, ax = plt.subplots()
     ax.semilogx(f, coherence_signal, label="Original signal")
     ax.semilogx(f, coherence_hydro, "--", label="Coherent component")
@@ -518,8 +521,6 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.set_facecolor("0.9")
     plt.savefig(os.path.join(config["out_dir"], "wiener_coherence_comparison.svg"))
     plt.close("all")
-
-
 
 
 if __name__ == "__main__":

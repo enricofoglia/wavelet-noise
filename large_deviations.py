@@ -11,7 +11,14 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from wavelet_noise.utils import read_beamforming_case
 from wavelet_noise.wavelet import coherent_vortex_extraction
-from wavelet_noise.stats import empirical_rate_func, empirical_scgf, compute_diagnostics, estimate_kc, generalized_flatness, wavelet_intermittency
+from wavelet_noise.stats import (
+    empirical_rate_func,
+    empirical_scgf,
+    compute_diagnostics,
+    estimate_kc,
+    generalized_flatness,
+    wavelet_intermittency,
+)
 
 from rich import print
 
@@ -22,9 +29,15 @@ parser.add_argument("--file_path", type=str, help="Path to the beamforming case 
 parser.add_argument(
     "--fig_dir", type=str, default=".", help="Directory to save the figure."
 )
-parser.add_argument("--hydro", action="store_true", help="Whether to analyze the hydrodynamic signal instead of the noise.")
+parser.add_argument(
+    "--hydro",
+    action="store_true",
+    help="Whether to analyze the hydrodynamic signal instead of the noise.",
+)
 parser.add_argument("--b", type=int, help="Block size for large deviation analysis.")
-parser.add_argument("--rmp", type=int, help="RMP index. Can be 0, 1, 2, or 3", default=0)
+parser.add_argument(
+    "--rmp", type=int, help="RMP index. Can be 0, 1, 2, or 3", default=0
+)
 # colors
 my_colors = {"biennale_red": "#D21C2D"}
 
@@ -36,7 +49,6 @@ def _main():
     mic = case.microphones[:, 29]
     signal = case.rmp[:, args.rmp]
 
-   
     # CVE
     cve = coherent_vortex_extraction(
         signal, "coif8", max_iter=100, tol=1, use_approx=False
@@ -62,6 +74,7 @@ def _main():
     print(
         f"Using block size of {b} for large deviation analysis based on effective samples"
     )
+
     def gaussian_rate_func(s, mu: float = 0.0, var: float = 1.0):
         return (s - mu) ** 2 * var / 2
 
@@ -81,7 +94,9 @@ def _main():
         return logi_s_k(k, s) * k - logi_scgf(k, s)
 
     gauss_noise = np.random.normal(loc=0.0, scale=1.0, size=noise_st.shape)
-    logi_noise = np.random.logistic(loc=0.0, scale=np.sqrt(3) / np.pi, size=noise_st.shape)
+    logi_noise = np.random.logistic(
+        loc=0.0, scale=np.sqrt(3) / np.pi, size=noise_st.shape
+    )
 
     k_c = np.pi / np.sqrt(3)
     k_c_pm = estimate_kc(len(noise_st), 2.0)
@@ -106,9 +121,7 @@ def _main():
     ax[0].plot(
         k, scgf_gauss, ls="--", color="k", alpha=0.5, label="Gaussian SCGF (emp)"
     )
-    ax[0].plot(
-        k_logi, scgf_logi, label="Logistic SCGF (emp)"
-    )
+    ax[0].plot(k_logi, scgf_logi, label="Logistic SCGF (emp)")
     ax[0].plot(
         k_logi, logi_scgf(k_logi), ls=":", color="k", alpha=1.0, label="Logistic SCGF"
     )
@@ -186,7 +199,7 @@ def _main():
         s,
         min(I) * 1.1,
         max(I) * 1.1,
-        where=(s <= -s_c) | (s >= s_c), 
+        where=(s <= -s_c) | (s >= s_c),
         color="grey",
         alpha=0.1,
     )
@@ -222,9 +235,27 @@ def _main():
     I_hist -= I_hist.min()  # shift so that the minimum is at zero
 
     fig, ax = plt.subplots(figsize=(6, 6), layout="tight")
-    ax.plot(s, gaussian_rate_func(s), ls="--", color="k", alpha=0.5, linewidth=6, label="Gaussian rate function")
-    ax.plot(bins[:-1], I_hist, ls="--",color="k", label="Empirical rate function (hist)")
-    ax.plot(s_logi, I_logi, ls="-", linewidth=6, color="k", alpha=0.5, label="Logistic rate function")
+    ax.plot(
+        s,
+        gaussian_rate_func(s),
+        ls="--",
+        color="k",
+        alpha=0.5,
+        linewidth=6,
+        label="Gaussian rate function",
+    )
+    ax.plot(
+        bins[:-1], I_hist, ls="--", color="k", label="Empirical rate function (hist)"
+    )
+    ax.plot(
+        s_logi,
+        I_logi,
+        ls="-",
+        linewidth=6,
+        color="k",
+        alpha=0.5,
+        label="Logistic rate function",
+    )
     ax.plot(s, I, color="k", ls="-", label="Empirical rate function (SCGF)")
     ax.set_xlabel(r"$s$")
     ax.set_ylabel(r"$\widehat{I}_L(s)$")
@@ -242,13 +273,13 @@ def _main():
     fig, ax = plt.subplots(1, 3, figsize=(12, 4), layout="tight")
     n_steps = 10
     # Sample gray_r from 0.1 to 1.0 to avoid pure white at the low end
-    colors = cm.gray_r(np.linspace(0.1, 1.0, n_steps)) 
+    colors = cm.gray_r(np.linspace(0.1, 1.0, n_steps))
     cmap = mcolors.ListedColormap(colors)
     bounds = np.arange(0.5, n_steps + 1.5, 1)  # boundaries between discrete levels
     norm = mcolors.BoundaryNorm(bounds, cmap.N)
 
     for m in range(n_steps, 0, -1):
-        bm = b  * m
+        bm = b * m
         scgf = empirical_scgf(noise_st, k, b=bm)
         s_k, s, I = empirical_rate_func(noise_st, k, b=bm)
 
@@ -287,37 +318,45 @@ def _main():
     )
 
     fig, ax = plt.subplots()
-    ax.hist(noise_st, bins=bins, density=False, color="k", alpha = 0.1, histtype="stepfilled")
-    ax.hist(noise_st, bins=bins, density=False, color="k", alpha = .8, histtype="step", linewidth=2)
+    ax.hist(
+        noise_st, bins=bins, density=False, color="k", alpha=0.1, histtype="stepfilled"
+    )
+    ax.hist(
+        noise_st,
+        bins=bins,
+        density=False,
+        color="k",
+        alpha=0.8,
+        histtype="step",
+        linewidth=2,
+    )
     ax.set_ylabel("Count")
     ax.set_xlabel(r"$p_{\mathrm{noise}}$ (standardized)")
     ax.set_yscale("log")
     ax.grid(which="major", axis="y")
 
-
     fig, ax = plt.subplots()
-    tau = np.logspace(1,4,100)
+    tau = np.logspace(1, 4, 100)
     tau = np.unique(np.round(tau).astype(int))
-    dt = 1/ case.fs 
+    dt = 1 / case.fs
     intermittency = []
     for _tau in tau:
         intermittency.append(generalized_flatness(noise_st, n=4, tau=_tau))
 
     intermittency = np.array(intermittency)
-    ax.plot(tau * dt ,intermittency, color="k")
+    ax.plot(tau * dt, intermittency, color="k")
     ax.axhline(3.0, linestyle="--", color=my_colors["biennale_red"])
     ax.set_xlabel(r"$\Delta t$ [s]")
     ax.set_ylabel(r"$\sigma(4)$ [-]")
     ax.grid(which="major")
     ax.set_xscale("log")
 
-
     fig, ax = plt.subplots()
-    wavelet = ["db"+str(2*i) for i in range(1,11)]
-    for i ,wav in enumerate(wavelet):
-        intermittency = wavelet_intermittency(noise_st , wavelet = wav)
+    wavelet = ["db" + str(2 * i) for i in range(1, 11)]
+    for i, wav in enumerate(wavelet):
+        intermittency = wavelet_intermittency(noise_st, wavelet=wav)
 
-        ax.plot(intermittency, color="k", alpha=i*0.1)
+        ax.plot(intermittency, color="k", alpha=i * 0.1)
     ax.axhline(3.0, linestyle="--", color=my_colors["biennale_red"])
     ax.set_xlabel(r"Scale index")
     ax.set_ylabel(r"$\sigma_w(4)$ [-]")

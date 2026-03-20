@@ -149,7 +149,7 @@ def compute_diagnostics(
         "kurtosis": kurt,
         "integral_time_scale": t_int,
         "effective_samples": n_eff,
-        "samples": data.shape[0]
+        "samples": data.shape[0],
     }
 
 
@@ -175,7 +175,7 @@ def display_diagnostics(
 
 def group_rv(x: np.ndarray, b: int) -> np.ndarray:
     """Group the input data into blocks of size b and return the sum of each block.
-    
+
     Arguments
     ---------
     x: np.ndarray
@@ -199,7 +199,7 @@ def group_rv(x: np.ndarray, b: int) -> np.ndarray:
 
 def empirical_scgf(x: np.ndarray, k: np.ndarray, b: int = 1, derivative: bool = False):
     r"""Compute the empirical scaled cumulant generating function (SCGF) of the input data.
-    
+
     Compute cumulant generating function of the input data:
 
     .. math::
@@ -238,13 +238,13 @@ def empirical_scgf(x: np.ndarray, k: np.ndarray, b: int = 1, derivative: bool = 
 
 def empirical_rate_func(x: np.ndarray, k: np.ndarray, b: int = 1):
     """Compute the empirical rate function of the input data.
-    
+
     The algorithm starts by computing the cumulant generating function of the data, :math:`\lambda(k)`, using :func:`empirical_scgf`. Then, the rate function :math:`I(s)` is computed using the Legendre-Flechet transform:
 
     .. math::
         I(s(k)) = k s(k) - \lambda(k)
 
-    where :math:`s(k) = \lambda'(k)`. 
+    where :math:`s(k) = \lambda'(k)`.
 
     .. caution::
         This algorithm only works under the hypothesis of the Gärtner-Ellis theorem, that is that the SCGF is everywhere differentiable, so that the rate function can be calculated as the Legendre transform of :math:`\lambda`. If that is not the case, the algorithm will, at best, return the convex envelope of :math:`I(s)`
@@ -274,9 +274,10 @@ def empirical_rate_func(x: np.ndarray, k: np.ndarray, b: int = 1):
     sort_ind = np.argsort(scgf_prime)
     return scgf_prime, scgf_prime[sort_ind], I_k[sort_ind]
 
-def estimate_kc(num_samples:int, exponent:float) -> tuple[float,float]:
-    r'''Compute an estimation of the convergence bounds :math:`k_c^{\pm}` for the SCGF estimator, based on the hypothesis that the dominant exponential term of the probability density function (pdf) of the data is of the form:
-    
+
+def estimate_kc(num_samples: int, exponent: float) -> tuple[float, float]:
+    r"""Compute an estimation of the convergence bounds :math:`k_c^{\pm}` for the SCGF estimator, based on the hypothesis that the dominant exponential term of the probability density function (pdf) of the data is of the form:
+
     .. math::
         p(x) \approx e^{-\vert x \vert^\rho}
 
@@ -290,7 +291,7 @@ def estimate_kc(num_samples:int, exponent:float) -> tuple[float,float]:
         number of samples
     exponent: float
         exponent :math:`\rho` of the pdf
-    
+
     Returns
     -------
     tuple[float,float]
@@ -302,15 +303,17 @@ def estimate_kc(num_samples:int, exponent:float) -> tuple[float,float]:
     .. _rowler2015:
 
     [1] Rohwer, C. M., Angeletti, F., & Touchette, H. (2015). Convergence of large-deviation estimators. Physical Review E, 92(5), 052104.
-    '''
+    """
     assert exponent >= 1, "The exponent should be bigger than one"
     if exponent == 1:
         return -np.pi / np.sqrt(3), np.pi / np.sqrt(3)
     else:
-        return -(np.log(num_samples))**(1-1/exponent), (np.log(num_samples))**(1-1/exponent)
+        return -((np.log(num_samples)) ** (1 - 1 / exponent)), (
+            np.log(num_samples)
+        ) ** (1 - 1 / exponent)
 
 
-def structure_function(u:np.ndarray, n:int, tau:int=1)->float:
+def structure_function(u: np.ndarray, n: int, tau: int = 1) -> float:
     """
     Estimate :math:`S_n(\tau) = \langle\vert\deltau\vert^n\rangle` from a 1D time series :math:`u`, where :math:`\Delta u = u(t+\tau) - u(t)`.
 
@@ -330,23 +333,24 @@ def structure_function(u:np.ndarray, n:int, tau:int=1)->float:
     """
     u = np.asarray(u)
     du = u[tau:] - u[:-tau]
-    return np.mean(np.abs(du)**n)
+    return np.mean(np.abs(du) ** n)
 
-def generalized_flatness(u:np.ndarray, n:int, tau:int=1)->float:
+
+def generalized_flatness(u: np.ndarray, n: int, tau: int = 1) -> float:
     """
     :math:`\sigma(n) = S_n / S_2^{n/2}`. See :func:`stucture_function` for more details
     """
     S_n = structure_function(u, n, tau=tau)
     S_2 = structure_function(u, 2, tau=tau)
-    return S_n / (S_2**(n/2))
+    return S_n / (S_2 ** (n / 2))
 
-def wavelet_intermittency(u:np.ndarray, wavelet="coif8"):
+
+def wavelet_intermittency(u: np.ndarray, wavelet="coif8"):
     import pywt
+
     coef = pywt.wavedec(u, wavelet=wavelet)
     I = []
     for cd in coef[-1:0:-1]:
-        I.append(
-            np.mean(cd**4) / np.mean(cd**2)**2
-        )
-    
+        I.append(np.mean(cd**4) / np.mean(cd**2) ** 2)
+
     return np.array(I)
