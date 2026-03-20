@@ -7,5 +7,6 @@ Welcome to the ``wavelet_noise`` documentation! This package provides tools to u
    :maxdepth: 2
    :caption: Contents:
 
-   theory
+   about
+   getting_started
    modules

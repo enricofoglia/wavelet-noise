@@ -1,5 +1,5 @@
-wavelet_noise modules
-=====================
+API Documentation
+=================
 
 .. toctree::
    :maxdepth: 2
