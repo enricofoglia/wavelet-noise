@@ -314,8 +314,8 @@ def estimate_kc(num_samples: int, exponent: float) -> tuple[float, float]:
 
 
 def structure_function(u: np.ndarray, n: int, tau: int = 1) -> float:
-    """
-    Estimate :math:`S_n(\tau) = \langle\vert\deltau\vert^n\rangle` from a 1D time series :math:`u`, where :math:`\Delta u = u(t+\tau) - u(t)`.
+    r"""
+    Estimate :math:`S_n(\tau) = \langle\vert\Delta u\vert^n\rangle` from a 1D time series :math:`u`, where :math:`\Delta u = u(t+\tau) - u(t)`.
 
     Arguments
     ---------
@@ -333,12 +333,12 @@ def structure_function(u: np.ndarray, n: int, tau: int = 1) -> float:
     """
     u = np.asarray(u)
     du = u[tau:] - u[:-tau]
-    return np.mean(np.abs(du) ** n)
+    return stats.moment(du, order=n)
 
 
 def generalized_flatness(u: np.ndarray, n: int, tau: int = 1) -> float:
-    """
-    :math:`\sigma(n) = S_n / S_2^{n/2}`. See :func:`stucture_function` for more details
+    r"""
+    :math:`\sigma(n) = S_n / S_2^{n/2}`. See :func:`structure_function` for more details
     """
     S_n = structure_function(u, n, tau=tau)
     S_2 = structure_function(u, 2, tau=tau)
@@ -351,6 +351,6 @@ def wavelet_intermittency(u: np.ndarray, wavelet="coif8"):
     coef = pywt.wavedec(u, wavelet=wavelet)
     I = []
     for cd in coef[-1:0:-1]:
-        I.append(np.mean(cd**4) / np.mean(cd**2) ** 2)
+        I.append(stats.moment(cd, 4) / stats.moment(cd, 2) ** 2)
 
     return np.array(I)
