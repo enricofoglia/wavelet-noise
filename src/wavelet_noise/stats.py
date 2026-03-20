@@ -273,3 +273,80 @@ def empirical_rate_func(x: np.ndarray, k: np.ndarray, b: int = 1):
     I_k = k * scgf_prime - scgf
     sort_ind = np.argsort(scgf_prime)
     return scgf_prime, scgf_prime[sort_ind], I_k[sort_ind]
+
+def estimate_kc(num_samples:int, exponent:float) -> tuple[float,float]:
+    r'''Compute an estimation of the convergence bounds :math:`k_c^{\pm}` for the SCGF estimator, based on the hypothesis that the dominant exponential term of the probability density function (pdf) of the data is of the form:
+    
+    .. math::
+        p(x) \approx e^{-\vert x \vert^\rho}
+
+    If the exponent is exactly 1 (similar to a logistic distribution), then the value :math:`k_c^{\pm}=\pm \pi/\sqrt{3}` is returned.
+
+    For more information see :ref:`Rohwer et al. [1] <rowler2015>`
+
+    Arguments
+    ---------
+    num_samples: int
+        number of samples
+    exponent: float
+        exponent :math:`\rho` of the pdf
+    
+    Returns
+    -------
+    tuple[float,float]
+        lower and upper bounds of the estimator
+
+    References
+    ^^^^^^^^^^
+
+    .. _rowler2015:
+
+    [1] Rohwer, C. M., Angeletti, F., & Touchette, H. (2015). Convergence of large-deviation estimators. Physical Review E, 92(5), 052104.
+    '''
+    assert exponent >= 1, "The exponent should be bigger than one"
+    if exponent == 1:
+        return -np.pi / np.sqrt(3), np.pi / np.sqrt(3)
+    else:
+        return -(np.log(num_samples))**(1-1/exponent), (np.log(num_samples))**(1-1/exponent)
+
+
+def structure_function(u:np.ndarray, n:int, tau:int=1)->float:
+    """
+    Estimate :math:`S_n(\tau) = \langle\vert\deltau\vert^n\rangle` from a 1D time series :math:`u`, where :math:`\Delta u = u(t+\tau) - u(t)`.
+
+    Arguments
+    ---------
+    u: np.ndarray
+        data to analyse
+    n: int
+        degree of the structure function
+    tau: int, optional
+        spacing between samples. Default 1
+
+    Returns
+    -------
+    float
+        Structure function of order n.
+    """
+    u = np.asarray(u)
+    du = u[tau:] - u[:-tau]
+    return np.mean(np.abs(du)**n)
+
+def generalized_flatness(u:np.ndarray, n:int, tau:int=1)->float:
+    """
+    :math:`\sigma(n) = S_n / S_2^{n/2}`. See :func:`stucture_function` for more details
+    """
+    S_n = structure_function(u, n, tau=tau)
+    S_2 = structure_function(u, 2, tau=tau)
+    return S_n / (S_2**(n/2))
+
+def wavelet_intermittency(u:np.ndarray, wavelet="coif8"):
+    import pywt
+    coef = pywt.wavedec(u, wavelet=wavelet)
+    I = []
+    for cd in coef[-1:0:-1]:
+        I.append(
+            np.mean(cd**4) / np.mean(cd**2)**2
+        )
+    
+    return np.array(I)
