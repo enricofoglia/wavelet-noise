@@ -8,16 +8,27 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
+    "cycler>=0.12.1",
     "h5py>=3.14.0",
     "matplotlib>=3.10.3",
     "numpy>=2.3.1",
+    "pypalettes>=0.2.1",
     "pywavelets>=1.8.0",
+    "pyyaml>=6.0.3",
+    "rich>=14.2.0",
     "scipy>=1.16.0",
+    "surd-states",
     "tqdm>=4.67.1",
 ]
 
 [project.scripts]
 wavelet-noise = "wavelet_noise:main"
+
+[project.optional-dependencies]
+doc = [
+    "shibuya>=2026.1.9",
+    "sphinx>=9.0.4",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -26,6 +37,7 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pyqt6>=6.9.1",
+    "pytest>=8.4.2",
     "ruff>=0.12.3",
 ]
 
@@ -34,3 +46,6 @@ line-length = 88
 
 [tool.ruff.format]
 docstring-code-format = true
+
+[tool.uv.sources]
+surd-states = { path = "../../../../3A/04_random_stuff/surd/SURD-states", editable = true }
