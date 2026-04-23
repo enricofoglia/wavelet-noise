@@ -11,7 +11,9 @@ class CalibrationResult:
     """
     Dataclass to store the results of the RMP signal calibration process.
 
-    Attributes:
+    Attributes
+    ----------
+
     frequencies (np.ndarray): The frequencies at which the transfer function and coherence were computed.
     transfer_function (np.ndarray): The estimated transfer function between the reference and RMP signals.
     coherence (np.ndarray): The coherence between the reference and RMP signals.
@@ -117,7 +119,7 @@ def calibrate_rmp_signal(
     H_interp = np.interp(freq_target, f, H)
 
     # Apply the transfer function and delay correction
-    epsilon = 1e-3 * np.max(
+    epsilon = 1e-8 * np.max(
         np.abs(H_interp)
     )  # Regularization term to avoid division by zero
     H_inv = np.conj(H_interp) / (

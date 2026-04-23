@@ -45,6 +45,18 @@ plt.rcParams.update(
     }
 )
 
+def calibrate_rmp_signal(
+        calibration_dir: Path, 
+        rmp_index: int,
+        signal: np.ndarray,
+        time: np.ndarray,
+        nperseg: int = 1024,
+):
+    p_ref, p_rmp = wn.calibration.load_calibration_data(calibration_dir, f"rmp{rmp_index}_data.txt")
+    results = wn.calibration.calibrate_rmp_signal(p_ref, p_rmp, signal, time, nperseg=nperseg)
+    print(f"Delay: {results.delay:.6f} s")
+    print(f"Group delay at 1 kHz: {np.min(results.group_delay):.6f} s")
+    return results.calibrated_signal
 
 def perform_analysis(data: wn.utils.Case, config: dict):
     signal = data.rmp[:, config["rmp_index"]]
@@ -481,10 +493,16 @@ def main():
             data = wn.utils.read_beamforming_case(
                 os.path.join(config["data_dir"], config["case_name"])
             )
-            print(data)
+            if config["calibration"]["apply"]:
+                calibration_dir = Path(config["calibration"]["calibration_dir"])
+                signal = data.rmp[:, config["rmp_index"]]
+                time = data.time
+                calibrated_signal = calibrate_rmp_signal(
+                    calibration_dir, data.rmp_idx[config["rmp_index"]], signal, time, config["calibration"]["nperseg"]
+                )
+                data.rmp[:, config["rmp_index"]] = calibrated_signal
         elif config["type"] == "lbm":
             data = wn.utils.read_lbm_case(Path(config["data_dir"]))
-            print(data)
         config["out_dir"] = wn.utils.create_out_directory(
             config["out_dir_root"],
             os.path.join(config["data_dir"], config["case_name"]),

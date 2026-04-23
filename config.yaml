@@ -1,10 +1,11 @@
 ---
-data_dir: "/storage/efoglia/01_data/02_lbm/01_marlene_5deg"  # "/home/efoglia/Documents/02_data/05_cd_isae_beamforming" 
+data_dir:  "/home/efoglia/Documents/02_data/05_cd_isae_beamforming" 
+# data_dir: "/storage/efoglia/01_data/02_lbm/01_marlene_5deg"
 out_dir_root: "./out"
-case_name: "lbm" #"CD-ISAE-5deg-40pr-rmp22-26-1.h5"
-rmp_index: 12
+case_name: "CD-ISAE-5deg-40pr-rmp22-26-1.h5"
+rmp_index: 3
 compute_all: false
-type: "lbm" # "lbm" or "beamforming"
+type: "beamforming" # "lbm" or "beamforming"
 # Physical parameters
 p_ref: 2.0e-5
 sound_speed: 343.0
@@ -12,9 +13,14 @@ microphone_distance: 1.45
 micro_index: 0 # 29
 # wavelet
 wavelet: db24
+# calibration
+calibration:
+  apply: false
+  nperseg: 1024
+  calibration_dir: "/storage/efoglia/01_data/03_expe/01_calibration_rmp/01-SPSPEAKER"
 # Welch 
 welch:
-  nperseg_factor: 3
+  nperseg_factor: 6
   window: hann
 # Signal conditioning parameters
 conditioning:
@@ -30,8 +36,8 @@ plots:
     min: 20
     max: 20000.0
   spectrum_range:
-    min: -120
-    max: 100
+    min: -60
+    max: 80
   spectrum_micro_range:
     min: -60
     max: 40
