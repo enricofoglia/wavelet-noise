@@ -1,5 +1,7 @@
 import os
 
+from pathlib import Path
+
 import yaml
 
 from functools import partial
@@ -72,7 +74,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     # display autocorrelation of the rmp signal
     n = signal.shape[0]
     autocorr = sg.correlate(signal, signal, mode="full")[n - 1 :] / n / signal.var()
-    time_lags = sg.correlation_lags(n, n, mode="full")[n - 1 :] / data.fs
+    time_lags = sg.correlation_lags(n, n, mode="full")[n - 1 :] / data.fs[0]
     fig, ax = plt.subplots()
     ax.plot(time_lags, autocorr, color=main_color)
     ax.set_xlabel("Time lag [s]")
@@ -80,7 +82,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_title("Autocorrelation of RMP signal")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.set_xlim(0.0, 0.025)
-    plt.savefig(os.path.join(config["out_dir"], "autocorrelation_rmp.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "autocorrelation_rmp")
     plt.close()
 
     threshold_corr = np.linspace(0, 1, 25, endpoint=False)
@@ -91,7 +93,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
         if idx < 1:
             idx = 1
         integral_time_scale.append(
-            integrate.trapezoid(autocorr[:idx], dx=1.0 / data.fs)
+            integrate.trapezoid(autocorr[:idx], dx=1.0 / data.fs[0])
         )
         t_lag.append(time_lags[1 + idx])
     fig, ax = plt.subplots()
@@ -105,13 +107,11 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     formatter.set_powerlimits((-3, -3))  # Force 10^-3 notation
     ax.yaxis.set_major_formatter(formatter)
     ax.grid(True, which="both", ls="--", lw=0.5)
-    plt.savefig(
-        os.path.join(config["out_dir"], "itc_vs_threshold.svg"), bbox_inches="tight"
-    )
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "itc_vs_threshold")
     plt.close("all")
 
     welch_kwargs = {
-        "fs": data.fs,
+        "fs": data.fs[0],
         "nperseg": signal.shape[0] // 2**6,
         "noverlap": signal.shape[0] // 2**7,
         "window": "hamming",
@@ -164,7 +164,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     max_corr = np.argmax(np.abs(correlation_hydro))
     time_lags = (
-        sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full") / data.fs
+        sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full") / data.fs[0]
     )
     best_lag = time_lags[max_corr]
     print(
@@ -192,7 +192,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     # ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "correlation_hydro.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "correlation_hydro")
 
     fig, ax = plt.subplots()
     ax.plot(time_lags, correlation_signal, label="Original signal")
@@ -216,7 +216,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "correlation_comparison.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "correlation_comparison")
     plt.close("all")
 
     correlation = []
@@ -255,17 +255,14 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlim(-0.025, 0.025)
     ax.set_ylim(bottom=0.0)
     ax.legend(loc="upper right")
-    plt.savefig(
-        os.path.join(config["out_dir"], "correlation_hydro_avg.svg"),
-        bbox_inches="tight",
-    )
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "correlation_hydro_avg")
 
     fig, ax = plt.subplots()
     ax.plot(np.array(cve.incoherent_coeffs_history) / n, "-o", color=main_color)
     ax.set_xlabel("Iteration")
     ax.set_ylabel("Fraction of incoherent coefficients")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    plt.savefig(os.path.join(config["out_dir"], "cve_convergence.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "cve_convergence")
 
     lowcut = config["conditioning"]["bandpass_filter"]["lowcut"]
     highcut = config["conditioning"]["bandpass_filter"]["highcut"]
@@ -277,9 +274,9 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(20, 20e3)
-    ax.set_ylim(-60, 80)
-    plt.savefig(os.path.join(config["out_dir"], "psd_original.svg"))
+    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    ax.set_ylim(config["plots"]["spectrum_range"]["min"], config["plots"]["spectrum_range"]["max"])
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "psd_original")
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd_hydro / p_ref**2), label="Original signal")
@@ -288,8 +285,8 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(20, 20e3)
-    plt.savefig(os.path.join(config["out_dir"], "psd_denoised.svg"))
+    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "psd_denoised")
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd_noise / p_ref**2), label="Original signal")
@@ -298,8 +295,8 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(20, 20e3)
-    plt.savefig(os.path.join(config["out_dir"], "psd_noise.svg"))
+    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "psd_noise")
 
     fig, ax = plt.subplots()
     ax.semilogx(f, 10 * np.log10(psd / p_ref**2), label="Original signal")
@@ -312,10 +309,10 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(20, 20e3)
-    ax.set_ylim(-60, 80)
+    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    ax.set_ylim(config["plots"]["spectrum_range"]["min"], config["plots"]["spectrum_range"]["max"])
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "psd_comparison.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "psd_comparison")
     plt.close("all")
 
     fig, ax = plt.subplots()
@@ -325,11 +322,9 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(20, 20e3)
-    ax.set_ylim(-60, 40)
-    plt.savefig(
-        os.path.join(config["out_dir"], f"psd_farfield_{config['micro_index'] + 1}.svg")
-    )
+    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    ax.set_ylim(config["plots"]["spectrum_micro_range"]["min"], config["plots"]["spectrum_micro_range"]["max"])
+    wn.utils.save_fig(fig, Path(config["out_dir"]), f"psd_farfield_{config['micro_index'] + 1}")
 
     nsamples = 1000
     fig, ax = plt.subplots()
@@ -351,7 +346,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Pressure fluctuation [Pa]")
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "time_signal_comparison.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "time_signal_comparison")
 
     fig, ax = plt.subplots()
     ax.hist(
@@ -403,7 +398,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylim(bottom=1e-6)
     ax.grid(True, which="both", ls="--", lw=0.5, zorder=0)
     ax.legend(loc="lower right")
-    plt.savefig(os.path.join(config["out_dir"], "pdf_comparison.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "pdf_comparison")
 
     fig, ax = plt.subplots()
     ax.hist(cve.noise, bins=100, alpha=1.0, label="Incoherent component", density=True)
@@ -411,7 +406,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_ylabel("Probability density")
     ax.set_yscale("log")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    plt.savefig(os.path.join(config["out_dir"], "pdf_noise.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "pdf_noise")
 
     fig, ax = plt.subplots()
     ax.semilogx(f, coherence_signal, label="Original signal")
@@ -419,14 +414,14 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.semilogx(f, coherence_noise, label="Incoherent component")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Coherence with microphone signal")
-    ax.set_xlim(20, 20e3)
+    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
     ax.set_ylim(0.0, 1.0)
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "coherence_comparison.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "coherence_comparison")
     plt.close("all")
 
-    weiner_analysis(signal, signal_micro, config, data.fs)
+    weiner_analysis(signal, signal_micro, config, data.fs[0])
 
 
 def main():
@@ -452,9 +447,16 @@ def main():
                 continue
 
     else:
-        data = wn.utils.read_beamforming_case(
-            os.path.join(config["data_dir"], config["case_name"])
-        )
+        if config["type"] == "beamforming":
+            data = wn.utils.read_beamforming_case(
+                os.path.join(config["data_dir"], config["case_name"])
+            )
+            print(data)
+        elif config["type"] == "lbm":
+            data = wn.utils.read_lbm_case(
+                Path(config["data_dir"])
+            )
+            print(data)
         config["out_dir"] = wn.utils.create_out_directory(
             config["out_dir_root"],
             os.path.join(config["data_dir"], config["case_name"]),
@@ -502,11 +504,11 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(20, 20e3)
-    ax.set_ylim(-60, 80)
+    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    ax.set_ylim(config["plots"]["spectrum_range"]["min"], config["plots"]["spectrum_range"]["max"])
     ax.set_facecolor("0.9")
     ax.legend(loc="upper right")
-    plt.savefig(os.path.join(config["out_dir"], "wiener_psd_comparison.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "wiener_psd_comparison")
 
     fig, ax = plt.subplots()
     ax.semilogx(f, coherence_signal, label="Original signal")
@@ -514,12 +516,12 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.semilogx(f, coherence_noise, label="Incoherent component")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Coherence with microphone signal")
-    ax.set_xlim(20, 20e3)
+    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
     ax.set_ylim(0.0, 1.0)
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
     ax.set_facecolor("0.9")
-    plt.savefig(os.path.join(config["out_dir"], "wiener_coherence_comparison.svg"))
+    wn.utils.save_fig(fig, Path(config["out_dir"]), "wiener_coherence_comparison")
     plt.close("all")
 
 

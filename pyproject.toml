@@ -48,4 +48,4 @@ line-length = 88
 docstring-code-format = true
 
 [tool.uv.sources]
-surd-states = { path = "../../../../3A/04_random_stuff/surd/SURD-states", editable = true }
+surd-states = { path = "../../05_surd/SURD-states", editable = true }

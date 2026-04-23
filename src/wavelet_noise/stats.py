@@ -115,6 +115,9 @@ def compute_integral_time_scale(
     """
     Compute the integral time scale of the input signal.
     """
+    
+
+    data = conditioning(data, detrend=True, detrend_degree=1)
     n = data.shape[0]
     autocorr = (
         sg.correlate(data, data, mode="full")[n - 1 :] / n / data.var()
@@ -130,6 +133,7 @@ def compute_integral_time_scale(
             )
 
     integral_time_scale = integrate.trapezoid(autocorr[:idx], dx=dt)
+
     return integral_time_scale
 
 

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import os
 import re
@@ -6,6 +7,13 @@ import re
 import h5py
 
 import numpy as np
+
+from matplotlib.figure import Figure
+
+# ————— GLOBAL CONSTANTS ———————————————————————————————————————————————
+
+U_LBM = 16.0  # LBM velocity in m/s
+AOA_LBM = 5.0  # LBM angle of attack in degrees
 
 
 @dataclass(frozen=True)
@@ -250,6 +258,85 @@ def read_beamforming_case(file_path: os.PathLike) -> Case:
         fs=fs,
     )
 
+def _is_rmp_file(filename: Path) -> int | None:
+    name = filename.stem
+    rmp_pattern = r"rmp_(\d+)"
+    match = re.search(rmp_pattern, name)
+    if match:
+        rmp_number = int(match.group(1))
+        return rmp_number
+    return None
+
+def _is_microphone_file(filename: Path) -> int | None:
+    name = filename.stem
+    mic_pattern = r"mic_(\d+)"
+    match = re.search(mic_pattern, name)
+    if match:
+        mic_number = int(match.group(1))
+        return mic_number
+    return None
+
+def _argsort(l:list[int]) -> list[int]:
+    return sorted(range(len(l)), key=lambda i: l[i])
+
+def _get_shortest_length(arrays:list[np.ndarray]) -> int:
+    return min(arr.shape[0] for arr in arrays)
+
+def _trim_arrays(arrays:list[np.ndarray], length:int) -> list[np.ndarray]:
+    return [arr[-length:] for arr in arrays]
+
+def read_lbm_case(data_dir:Path) -> Case:
+    """
+    Reads a LBM case from a directory containing the data files and returns a Case object.
+
+    Parameters
+    ----------
+    data_dir : Path
+        Path to the directory containing the LBM data files.
+
+    Returns
+    -------
+    Case
+        A Case object containing the data and metadata from the files.
+    """
+    rmp_list = []
+    mic_list = []
+    rmp_idx_list = []
+    mic_idx_list = []
+    for file in data_dir.glob("*.h5"):
+        if rmp_idx :=_is_rmp_file(file):
+            print(f"Reading RMP file: {file.name} with index {rmp_idx}")
+            with h5py.File(file, "r") as f:
+                rmp_list.append(f["Static Pressure"][:])
+                time = f["Time"][:]
+            rmp_idx_list.append(rmp_idx)
+        elif mic_idx :=_is_microphone_file(file):
+            print(f"Reading microphone file: {file.name} with index {mic_idx}")
+            with h5py.File(file, "r") as f:
+                mic_list.append(f["Static Pressure"][:])
+            mic_idx_list.append(mic_idx)
+    # sort by index
+    mic_idx_sorted = _argsort(mic_idx_list)
+    rmp_idx_sorted = _argsort(rmp_idx_list)
+    # Trim arrays to the shortest length
+    shortest_length = _get_shortest_length(mic_list + rmp_list)
+    mic_list = _trim_arrays(mic_list, shortest_length)
+    rmp_list = _trim_arrays(rmp_list, shortest_length)
+
+    microphones = np.array(mic_list)[mic_idx_sorted].T
+    rmp = np.array(rmp_list)[rmp_idx_sorted].T
+  
+    return Case(
+        speed=16.0,
+        aoa=5.0,
+        rmp_idx=[rmp_idx_list[i] for i in rmp_idx_sorted],
+        microphones=microphones,
+        rmp=rmp,
+        time=time[-shortest_length:],
+        notape=True,
+        fs= 1 / np.diff(time)[-shortest_length:],
+    )
+
 
 def list_beamforming_cases(directory: os.PathLike) -> list[os.PathLike]:
     """
@@ -302,3 +389,13 @@ def create_out_directory(
     rmp_dir = os.path.join(case_dir, f"RMP_{rmp}")
     os.makedirs(rmp_dir, exist_ok=True)
     return rmp_dir
+
+
+
+def save_fig(fig: Figure, out_dir: Path, stem: str) -> None:
+    """Save figure as SVG, PDF, and PNG in per-format subdirectories."""
+    for fmt in ("svg", "pdf", "png"):
+        subdir = out_dir / fmt
+        subdir.mkdir(parents=True, exist_ok=True)
+        fig.savefig(subdir / f"{stem}.{fmt}", bbox_inches="tight")
+    print(f"  saved {out_dir}/{{svg,pdf,png}}/{stem}.*")

@@ -1,14 +1,15 @@
 ---
-data_dir: "/home/efoglia/Documents/02_data/05_cd_isae_beamforming"
+data_dir: "/home/efoglia/Documents/02_data/05_cd_isae_beamforming" # "/storage/efoglia/01_data/02_lbm/01_marlene_5deg"  
 out_dir_root: "./out"
 case_name: "CD-ISAE-5deg-40pr-rmp22-26-1.h5"
 rmp_index: 3
 compute_all: false
+type: "beamforming"
 # Physical parameters
 p_ref: 2.0e-5
 sound_speed: 343.0
 microphone_distance: 1.45
-micro_index: 29
+micro_index: 29 # 29
 # wavelet
 wavelet: db24
 # Signal conditioning parameters
@@ -20,3 +21,13 @@ conditioning:
     apply: true
     lowcut: 100.0 # Check Anna Caiazzo's parameters
     highcut: 10000.0 # Check Anna Caiazzo's parameters
+plots:
+  frequency_range:
+    min: 20
+    max: 20000.0
+  spectrum_range:
+    min: -60
+    max: 80
+  spectrum_micro_range:
+    min: -60
+    max: 40

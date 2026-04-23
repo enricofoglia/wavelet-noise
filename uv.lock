@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
     "python_full_version >= '3.12'",
@@ -1456,7 +1456,7 @@ wheels = [
 [[package]]
 name = "surd-states"
 version = "0.1.0"
-source = { editable = "../../../../3A/04_random_stuff/surd/SURD-states" }
+source = { editable = "../../05_surd/SURD-states" }
 dependencies = [
     { name = "contourpy" },
     { name = "cycler" },
@@ -1590,7 +1590,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.16.0" },
     { name = "shibuya", marker = "extra == 'doc'", specifier = ">=2026.1.9" },
     { name = "sphinx", marker = "extra == 'doc'", specifier = ">=9.0.4" },
-    { name = "surd-states", editable = "../../../../3A/04_random_stuff/surd/SURD-states" },
+    { name = "surd-states", editable = "../../05_surd/SURD-states" },
     { name = "tqdm", specifier = ">=4.67.1" },
 ]
 provides-extras = ["doc"]
