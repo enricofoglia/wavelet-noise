@@ -112,9 +112,9 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     welch_kwargs = {
         "fs": data.fs[0],
-        "nperseg": signal.shape[0] // 2**6,
-        "noverlap": signal.shape[0] // 2**7,
-        "window": "hamming",
+        "nperseg": signal.shape[0] // 2**config["welch"]["nperseg_factor"],
+        "noverlap": signal.shape[0] // 2**(config["welch"]["nperseg_factor"]+1),
+        "window": config["welch"]["window"],
     }
 
     f, psd = sg.welch(signal, **welch_kwargs)
@@ -476,10 +476,11 @@ def weiner_analysis(signal, micro, config, fs=1.0):
 
     welch_kwargs = {
         "fs": fs,
-        "nperseg": signal.shape[0] // 2**6,
-        "noverlap": signal.shape[0] // 2**7,
-        "window": "hamming",
+        "nperseg": signal.shape[0] // 2**config["welch"]["nperseg_factor"],
+        "noverlap": signal.shape[0] // 2**(config["welch"]["nperseg_factor"]+1),
+        "window": config["welch"]["window"],
     }
+
 
     f, psd = sg.welch(signal, **welch_kwargs)
     psd_hydro = sg.welch(hydro, **welch_kwargs)[1]
