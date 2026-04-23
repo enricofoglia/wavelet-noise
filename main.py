@@ -112,8 +112,8 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     welch_kwargs = {
         "fs": data.fs[0],
-        "nperseg": signal.shape[0] // 2**config["welch"]["nperseg_factor"],
-        "noverlap": signal.shape[0] // 2**(config["welch"]["nperseg_factor"]+1),
+        "nperseg": signal.shape[0] // 2 ** config["welch"]["nperseg_factor"],
+        "noverlap": signal.shape[0] // 2 ** (config["welch"]["nperseg_factor"] + 1),
         "window": config["welch"]["window"],
     }
 
@@ -164,7 +164,8 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
     max_corr = np.argmax(np.abs(correlation_hydro))
     time_lags = (
-        sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full") / data.fs[0]
+        sg.correlation_lags(len(signal_micro), len(cve.signal), mode="full")
+        / data.fs[0]
     )
     best_lag = time_lags[max_corr]
     print(
@@ -274,8 +275,14 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
-    ax.set_ylim(config["plots"]["spectrum_range"]["min"], config["plots"]["spectrum_range"]["max"])
+    ax.set_xlim(
+        config["plots"]["frequency_range"]["min"],
+        config["plots"]["frequency_range"]["max"],
+    )
+    ax.set_ylim(
+        config["plots"]["spectrum_range"]["min"],
+        config["plots"]["spectrum_range"]["max"],
+    )
     wn.utils.save_fig(fig, Path(config["out_dir"]), "psd_original")
 
     fig, ax = plt.subplots()
@@ -285,7 +292,10 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    ax.set_xlim(
+        config["plots"]["frequency_range"]["min"],
+        config["plots"]["frequency_range"]["max"],
+    )
     wn.utils.save_fig(fig, Path(config["out_dir"]), "psd_denoised")
 
     fig, ax = plt.subplots()
@@ -295,7 +305,10 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    ax.set_xlim(
+        config["plots"]["frequency_range"]["min"],
+        config["plots"]["frequency_range"]["max"],
+    )
     wn.utils.save_fig(fig, Path(config["out_dir"]), "psd_noise")
 
     fig, ax = plt.subplots()
@@ -309,8 +322,14 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
-    ax.set_ylim(config["plots"]["spectrum_range"]["min"], config["plots"]["spectrum_range"]["max"])
+    ax.set_xlim(
+        config["plots"]["frequency_range"]["min"],
+        config["plots"]["frequency_range"]["max"],
+    )
+    ax.set_ylim(
+        config["plots"]["spectrum_range"]["min"],
+        config["plots"]["spectrum_range"]["max"],
+    )
     ax.legend(loc="upper right")
     wn.utils.save_fig(fig, Path(config["out_dir"]), "psd_comparison")
     plt.close("all")
@@ -322,9 +341,17 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
-    ax.set_ylim(config["plots"]["spectrum_micro_range"]["min"], config["plots"]["spectrum_micro_range"]["max"])
-    wn.utils.save_fig(fig, Path(config["out_dir"]), f"psd_farfield_{config['micro_index'] + 1}")
+    ax.set_xlim(
+        config["plots"]["frequency_range"]["min"],
+        config["plots"]["frequency_range"]["max"],
+    )
+    ax.set_ylim(
+        config["plots"]["spectrum_micro_range"]["min"],
+        config["plots"]["spectrum_micro_range"]["max"],
+    )
+    wn.utils.save_fig(
+        fig, Path(config["out_dir"]), f"psd_farfield_{config['micro_index'] + 1}"
+    )
 
     nsamples = 1000
     fig, ax = plt.subplots()
@@ -414,7 +441,10 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.semilogx(f, coherence_noise, label="Incoherent component")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Coherence with microphone signal")
-    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    ax.set_xlim(
+        config["plots"]["frequency_range"]["min"],
+        config["plots"]["frequency_range"]["max"],
+    )
     ax.set_ylim(0.0, 1.0)
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")
@@ -453,9 +483,7 @@ def main():
             )
             print(data)
         elif config["type"] == "lbm":
-            data = wn.utils.read_lbm_case(
-                Path(config["data_dir"])
-            )
+            data = wn.utils.read_lbm_case(Path(config["data_dir"]))
             print(data)
         config["out_dir"] = wn.utils.create_out_directory(
             config["out_dir_root"],
@@ -476,11 +504,10 @@ def weiner_analysis(signal, micro, config, fs=1.0):
 
     welch_kwargs = {
         "fs": fs,
-        "nperseg": signal.shape[0] // 2**config["welch"]["nperseg_factor"],
-        "noverlap": signal.shape[0] // 2**(config["welch"]["nperseg_factor"]+1),
+        "nperseg": signal.shape[0] // 2 ** config["welch"]["nperseg_factor"],
+        "noverlap": signal.shape[0] // 2 ** (config["welch"]["nperseg_factor"] + 1),
         "window": config["welch"]["window"],
     }
-
 
     f, psd = sg.welch(signal, **welch_kwargs)
     psd_hydro = sg.welch(hydro, **welch_kwargs)[1]
@@ -505,8 +532,14 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Power Spectral Density [dB/Hz]")
     ax.grid(True, which="both", ls="--", lw=0.5)
-    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
-    ax.set_ylim(config["plots"]["spectrum_range"]["min"], config["plots"]["spectrum_range"]["max"])
+    ax.set_xlim(
+        config["plots"]["frequency_range"]["min"],
+        config["plots"]["frequency_range"]["max"],
+    )
+    ax.set_ylim(
+        config["plots"]["spectrum_range"]["min"],
+        config["plots"]["spectrum_range"]["max"],
+    )
     ax.set_facecolor("0.9")
     ax.legend(loc="upper right")
     wn.utils.save_fig(fig, Path(config["out_dir"]), "wiener_psd_comparison")
@@ -517,7 +550,10 @@ def weiner_analysis(signal, micro, config, fs=1.0):
     ax.semilogx(f, coherence_noise, label="Incoherent component")
     ax.set_xlabel("Frequency [Hz]")
     ax.set_ylabel("Coherence with microphone signal")
-    ax.set_xlim(config["plots"]["frequency_range"]["min"], config["plots"]["frequency_range"]["max"])
+    ax.set_xlim(
+        config["plots"]["frequency_range"]["min"],
+        config["plots"]["frequency_range"]["max"],
+    )
     ax.set_ylim(0.0, 1.0)
     ax.grid(True, which="both", ls="--", lw=0.5)
     ax.legend(loc="upper right")

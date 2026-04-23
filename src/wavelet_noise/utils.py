@@ -258,6 +258,7 @@ def read_beamforming_case(file_path: os.PathLike) -> Case:
         fs=fs,
     )
 
+
 def _is_rmp_file(filename: Path) -> int | None:
     name = filename.stem
     rmp_pattern = r"rmp_(\d+)"
@@ -266,6 +267,7 @@ def _is_rmp_file(filename: Path) -> int | None:
         rmp_number = int(match.group(1))
         return rmp_number
     return None
+
 
 def _is_microphone_file(filename: Path) -> int | None:
     name = filename.stem
@@ -276,16 +278,20 @@ def _is_microphone_file(filename: Path) -> int | None:
         return mic_number
     return None
 
-def _argsort(l:list[int]) -> list[int]:
+
+def _argsort(l: list[int]) -> list[int]:
     return sorted(range(len(l)), key=lambda i: l[i])
 
-def _get_shortest_length(arrays:list[np.ndarray]) -> int:
+
+def _get_shortest_length(arrays: list[np.ndarray]) -> int:
     return min(arr.shape[0] for arr in arrays)
 
-def _trim_arrays(arrays:list[np.ndarray], length:int) -> list[np.ndarray]:
+
+def _trim_arrays(arrays: list[np.ndarray], length: int) -> list[np.ndarray]:
     return [arr[-length:] for arr in arrays]
 
-def read_lbm_case(data_dir:Path) -> Case:
+
+def read_lbm_case(data_dir: Path) -> Case:
     """
     Reads a LBM case from a directory containing the data files and returns a Case object.
 
@@ -304,13 +310,13 @@ def read_lbm_case(data_dir:Path) -> Case:
     rmp_idx_list = []
     mic_idx_list = []
     for file in data_dir.glob("*.h5"):
-        if rmp_idx :=_is_rmp_file(file):
+        if rmp_idx := _is_rmp_file(file):
             print(f"Reading RMP file: {file.name} with index {rmp_idx}")
             with h5py.File(file, "r") as f:
                 rmp_list.append(f["Static Pressure"][:])
                 time = f["Time"][:]
             rmp_idx_list.append(rmp_idx)
-        elif mic_idx :=_is_microphone_file(file):
+        elif mic_idx := _is_microphone_file(file):
             print(f"Reading microphone file: {file.name} with index {mic_idx}")
             with h5py.File(file, "r") as f:
                 mic_list.append(f["Static Pressure"][:])
@@ -325,7 +331,7 @@ def read_lbm_case(data_dir:Path) -> Case:
 
     microphones = np.array(mic_list)[mic_idx_sorted].T
     rmp = np.array(rmp_list)[rmp_idx_sorted].T
-  
+
     return Case(
         speed=16.0,
         aoa=5.0,
@@ -334,7 +340,7 @@ def read_lbm_case(data_dir:Path) -> Case:
         rmp=rmp,
         time=time[-shortest_length:],
         notape=True,
-        fs= 1 / np.diff(time)[-shortest_length:],
+        fs=1 / np.diff(time)[-shortest_length:],
     )
 
 
@@ -389,7 +395,6 @@ def create_out_directory(
     rmp_dir = os.path.join(case_dir, f"RMP_{rmp}")
     os.makedirs(rmp_dir, exist_ok=True)
     return rmp_dir
-
 
 
 def save_fig(fig: Figure, out_dir: Path, stem: str) -> None:

@@ -115,7 +115,6 @@ def compute_integral_time_scale(
     """
     Compute the integral time scale of the input signal.
     """
-    
 
     data = conditioning(data, detrend=True, detrend_degree=1)
     n = data.shape[0]
