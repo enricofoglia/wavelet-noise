@@ -4,6 +4,17 @@ Wavelet transform post-processing for airfoil trailing-edge noise
 > [!IMPORTANT]
 > The package SURD-states in not on PyPI at the moment. To use it, clone it directly from github and provide the relative path in the pyproject.toml file.
 
+## Running the code
+To run the code, use:
+```bash
+uv run main.py
+```
+
+The main script will look for a `config.yaml` file into the current directory and get all its input parameters from there. 
+
+> [!NOTE]
+> Set `type : beamforming` to read an experimental dataset, and `type : lbm` to read the numerical case. The `lbm` case will be read only if `compute_all` is set to `false`. If the `lbm` case is analysed, then `case_name` is only used to name the output folder, and can be set freely.
+
 ## Building the doc
 Once the code has been installed it is possible to build the documentation by:
 
