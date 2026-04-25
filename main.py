@@ -86,7 +86,7 @@ def _surd_analysis(mic, hydro, noise, time, delay, colors=None)-> tuple[plt.Figu
     print("INFORMATION FLUX FOR MICROPHONE SIGNAL")
     Rd, Sy, mi, info_leak, *_ = wn.surd_analysis.surd_states_at_lag(X, bins_list, nlag)
 
-    fig_sweep, fig_bar = wn.surd_analysis.plot_surd_results(time, lags, unique, redundant, synergistic, Rd, Sy)
+    fig_sweep, fig_bar = wn.surd_analysis.plot_surd_results(time, lags, unique, redundant, synergistic, Rd, Sy, colors)
     return fig_sweep, fig_bar
 
 def _ldt_analysis(noise):
@@ -563,7 +563,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     plt.close("all")
 
     # Surd analysis
-    fig_sweep, fig_bar = _surd_analysis(signal_micro, cve.signal, cve.noise, data.time, delay)
+    fig_sweep, fig_bar = _surd_analysis(signal_micro, cve.signal, cve.noise, data.time, 0.001)
     wn.utils.save_fig(fig_sweep, Path(config["out_dir"]), "surd_lag_sweep")
     wn.utils.save_fig(fig_bar, Path(config["out_dir"]), "surd_information_fraction")
 

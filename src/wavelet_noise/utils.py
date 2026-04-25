@@ -338,7 +338,7 @@ def read_lbm_case(data_dir: Path) -> Case:
         rmp_idx=[rmp_idx_list[i] for i in rmp_idx_sorted],
         microphones=microphones,
         rmp=rmp,
-        time=time[-shortest_length:],
+        time=time[-shortest_length:]-time[-shortest_length - 1],
         notape=True,
         fs=1 / np.diff(time)[-shortest_length:],
     )
