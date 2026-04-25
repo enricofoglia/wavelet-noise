@@ -89,6 +89,67 @@ def _surd_analysis(mic, hydro, noise, time, delay, colors=None)-> tuple[plt.Figu
     fig_sweep, fig_bar = wn.surd_analysis.plot_surd_results(time, lags, unique, redundant, synergistic, Rd, Sy)
     return fig_sweep, fig_bar
 
+def _ldt_analysis(noise):
+    """Perform LDT analysis and generate plots.
+    
+    Parameters
+    ----------
+    noise : ndarray, shape (N,)
+        Time series of the incoherent component.
+    """
+
+    k_c_pm = wn.stats.estimate_kc(len(noise), 2.0)
+    k = np.linspace(k_c_pm[0], k_c_pm[1], 250)
+
+    scgf = wn.stats.empirical_scgf(noise, k, b=1)
+    s_k, s, I = wn.stats.empirical_rate_func(noise, k, b=1)
+    return k, scgf, s, I
+
+def _plot_ldt_results(k, scgf, s, I) -> plt.Figure:
+    """Generate plots for LDT analysis results."""
+
+    def gaussian_rate_func(s, mu: float = 0.0, var: float = 1.0):
+        return (s - mu) ** 2 * var / 2
+
+    def gaussian_scgf(k, var: float = 1.0):
+        return var * k**2 / 2
+
+    def logi_scgf(k, s: float = np.sqrt(3) / np.pi):
+        return np.log(np.pi * s * k / np.sin(np.pi * s * k))
+
+    def logi_s_k(k, s: float = np.sqrt(3) / np.pi):
+        return -s * np.pi * (1 / np.tan(s * np.pi * k) - 1 / (s * np.pi * k))
+
+    def logi_rate_func(k, s: float = np.sqrt(3) / np.pi):
+        return logi_s_k(k, s) * k - logi_scgf(k, s)
+    
+    k_log = np.linspace(-np.pi / np.sqrt(3), np.pi / np.sqrt(3), 250)[1:-1]
+    sort_ind = np.argsort(logi_s_k(k_log))
+    s_logi = logi_s_k(k_log)[sort_ind]
+    I_logi = logi_rate_func(k_log)[sort_ind]
+
+    fig, ax = plt.subplots(1, 2, figsize=(8, 5))
+    ax[0].plot(k, scgf, color=main_color, label="Data")
+    ax[0].plot(k, gaussian_scgf(k), "--", label="Gaussian")
+    ax[0].plot(k_log, logi_scgf(k_log), "-.", label="Logistic")
+    ax[0].legend()
+    ax[0].set_xlabel("$k$ [-]")
+    ax[0].set_ylabel(r"$\lambda(k)$ [-]")
+    ax[0].grid(True, which="both", ls="--", lw=0.5)
+
+    ax[1].plot(s, I, color=main_color, label="Data")
+    ax[1].plot(s, gaussian_rate_func(s), "--", label="Gaussian rate function")
+    ax[1].plot(s_logi, I_logi, "-.", label="Logistic rate function")
+    ax[1].set_xlabel(r"$p/\sigma$ [-]")
+    ax[1].set_ylabel(r"Rate function $I(p)$ [-]")
+    ax[1].grid(True, which="both", ls="--", lw=0.5)
+    ax[1].set_xlim([-4, 4])
+    ax[1].set_ylim([8.5, -0.5])
+
+    plt.tight_layout()
+    return fig
+
+   
 
 
 def perform_analysis(data: wn.utils.Case, config: dict):
@@ -480,6 +541,10 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.set_yscale("log")
     ax.grid(True, which="both", ls="--", lw=0.5)
     wn.utils.save_fig(fig, Path(config["out_dir"]), "pdf_noise")
+
+    noise_standardized = (cve.noise - cve.noise.mean()) / cve.noise.std()
+    fig_ldt = _plot_ldt_results(*_ldt_analysis(noise_standardized))
+    wn.utils.save_fig(fig_ldt, Path(config["out_dir"]), "ldt_analysis")
 
     fig, ax = plt.subplots()
     ax.semilogx(f, coherence_signal, label="Original signal")
