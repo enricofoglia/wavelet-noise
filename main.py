@@ -563,7 +563,15 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     plt.close("all")
 
     # Surd analysis
-    fig_sweep, fig_bar = _surd_analysis(signal_micro, cve.signal, cve.noise, data.time, 0.001)
+    if config["type"] == "beamforming":
+        # For LBM data, we know the sound speed and microphone distance, so we can estimate the time lag for SURD analysis
+        c0 = config["sound_speed"]
+        L = config["microphone_distance"]
+        delay = L / c0
+    else:
+        # For beamforming data, we can use the peak of the correlation between the microphone signal and the hydrodynamic component to estimate the time lag for SURD analysis
+        delay = 0.005
+    fig_sweep, fig_bar = _surd_analysis(signal_micro, cve.signal, cve.noise, data.time, delay)
     wn.utils.save_fig(fig_sweep, Path(config["out_dir"]), "surd_lag_sweep")
     wn.utils.save_fig(fig_bar, Path(config["out_dir"]), "surd_information_fraction")
 

@@ -4,7 +4,7 @@ data_dir: "/storage/efoglia/01_data/02_lbm/01_marlene_5deg"
 out_dir_root: "./out"
 # case_name: "CD-ISAE-5deg-40pr-rmp2-6-90s-1.h5"
 case_name: "lbm"
-rmp_index: 12
+rmp_index: 9
 compute_all: false
 type: "lbm" # "lbm" or "beamforming"
 # Physical parameters
