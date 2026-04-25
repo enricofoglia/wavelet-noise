@@ -58,6 +58,39 @@ def calibrate_rmp_signal(
     print(f"Group delay at 1 kHz: {np.min(results.group_delay):.6f} s")
     return results.calibrated_signal
 
+def _surd_analysis(mic, hydro, noise, time, delay, colors=None)-> tuple[plt.Figure, plt.Figure]:
+    """Perform SURD analysis and generate plots.
+    
+    Parameters
+    ----------
+    mic, hydro, noise : ndarray, shape (N,)
+        Time series of the microphone signal, hydrodynamic component, and incoherent component.
+    time : ndarray, shape (N,)
+        Time vector corresponding to the signals.
+    delay : float
+        Estimated acoustic propagation delay in seconds.
+    colors : dict, optional
+        Override any key in DEFAULT_COLORS.
+    """
+    X = np.stack([mic, hydro, noise], axis=0)
+
+
+    sound_lag = int(delay / (time[1] - time[0]))
+
+    lags, unique, redundant, synergistic, bins_list = wn.surd_analysis.lag_sweep(X, sound_lag)
+
+    best_idx = np.argmax(unique[:, 0])
+    nlag = lags[best_idx]
+    print(f"Best time lag: {nlag} samples, {time[nlag]:.4f} seconds.")
+
+    print("INFORMATION FLUX FOR MICROPHONE SIGNAL")
+    Rd, Sy, mi, info_leak, *_ = wn.surd_analysis.surd_states_at_lag(X, bins_list, nlag)
+
+    fig_sweep, fig_bar = wn.surd_analysis.plot_surd_results(time, lags, unique, redundant, synergistic, Rd, Sy)
+    return fig_sweep, fig_bar
+
+
+
 def perform_analysis(data: wn.utils.Case, config: dict):
     signal = data.rmp[:, config["rmp_index"]]
     if config["conditioning"]["bandpass_filter"]["apply"]:
@@ -187,6 +220,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     L = config["microphone_distance"]
     error_L = 0.05  # 1 cm error in distance measurement
     p_ref = config.get("p_ref", 20e-6)
+    delay = L / c0
 
     # print
     print(f"Theoretical time lag: {L / c0:.2e} s")
@@ -462,6 +496,11 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     ax.legend(loc="upper right")
     wn.utils.save_fig(fig, Path(config["out_dir"]), "coherence_comparison")
     plt.close("all")
+
+    # Surd analysis
+    fig_sweep, fig_bar = _surd_analysis(signal_micro, cve.signal, cve.noise, data.time, delay)
+    wn.utils.save_fig(fig_sweep, Path(config["out_dir"]), "surd_lag_sweep")
+    wn.utils.save_fig(fig_bar, Path(config["out_dir"]), "surd_information_fraction")
 
     weiner_analysis(signal, signal_micro, config, data.fs[0])
 
