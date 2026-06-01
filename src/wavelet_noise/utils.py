@@ -423,4 +423,4 @@ def save_fig(fig: Figure, out_dir: Path, stem: str) -> None:
         subdir = out_dir / fmt
         subdir.mkdir(parents=True, exist_ok=True)
         fig.savefig(subdir / f"{stem}.{fmt}", bbox_inches="tight")
-    print(f"  saved {out_dir}/{{svg,pdf,png}}/{stem}.*")
+    logger.info(f"  saved {out_dir}/{{svg,pdf,png}}/{stem}.*")
