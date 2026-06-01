@@ -1,4 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from pathlib import Path
 
 import os
 import re
@@ -302,3 +303,20 @@ def create_out_directory(
     rmp_dir = os.path.join(case_dir, f"RMP_{rmp}")
     os.makedirs(rmp_dir, exist_ok=True)
     return rmp_dir
+
+
+def read_lbm(file: Path) -> Case:
+    name = file.stem
+    with h5py.File(file, "r") as f:
+        p, t = f[name]["StaticPressure"][:], f[name]["Time"][:]
+    rmp_n = name.split("_")[1]
+    fs = 1./(t[1]-t[0])
+    return Case(
+        speed=16.0,
+        aoa=5.0,
+        rmp_idx=[rmp_n],
+        rmp=p,
+        time=t,
+        fs=fs,
+        microphones=np.empty_like(p)
+    )
