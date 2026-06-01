@@ -1,6 +1,5 @@
 ---
-# data_dir:  "/home/efoglia/Documents/02_data/05_cd_isae_beamforming" 
-data_dir: "/storage/efoglia/01_data/02_lbm/01_marlene_5deg"
+data_dir: "/home/daep/e.foglia/Documents/3A/07_fluids_sound/02_data/01_cd_isae_beamforming/data"
 out_dir_root: "./out"
 # case_name: "CD-ISAE-5deg-40pr-rmp2-6-90s-1.h5"
 case_name: "lbm"

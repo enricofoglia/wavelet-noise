@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 
 import yaml
+import logging
 
 from functools import partial
 
@@ -17,18 +18,12 @@ import matplotlib.ticker as ticker
 
 import wavelet_noise as wn
 
-from rich import print
 from rich.progress import track
 
 from cycler import cycler
 
 from pypalettes import load_cmap
 
-# cmap = load_cmap("CafeTerrace")
-# cmap = load_cmap("Dark")
-# cmap = load_cmap("Antique")
-# cmap = load_cmap("Lively")
-# cmap = load_cmap("Tableau_10")
 cmap = load_cmap("alger", shuffle=2)
 main_color = cmap(4)
 
@@ -45,6 +40,17 @@ plt.rcParams.update(
     }
 )
 
+logger = logging.getLogger(__name__)
+_LOG_FMT = logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+
+
+def _add_file_handler(out_dir: str) -> None:
+    fh = logging.FileHandler(os.path.join(out_dir, "debug.log"))
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(_LOG_FMT)
+    logging.getLogger().addHandler(fh)
+    
+    
 def calibrate_rmp_signal(
         calibration_dir: Path, 
         rmp_index: int,
@@ -229,11 +235,11 @@ def perform_analysis(data: wn.utils.Case, config: dict):
         signal, wavelet=config["wavelet"], max_iter=100, tol=1, use_approx=False
     )
 
-    print(f"Number of iterations: {cve.iterations}")
-    print(f"Final threshold: {cve.final_threshold:.4e}")
-    print(f"Number of coherent coefficients: {cve.num_coherent_coeffs}")
-    print(f"Number of incoherent coefficients: {cve.num_incoherent_coeffs}")
-    print(
+    logger.info(f"Number of iterations: {cve.iterations}")
+    logger.info(f"Final threshold: {cve.final_threshold:.4e}")
+    logger.info(f"Number of coherent coefficients: {cve.num_coherent_coeffs}")
+    logger.info(f"Number of incoherent coefficients: {cve.num_incoherent_coeffs}")
+    logger.info(
         f"Fraction of coherent coefficients: {cve.num_coherent_coeffs / (cve.num_coherent_coeffs + cve.num_incoherent_coeffs):.2%}"
     )
 
@@ -274,7 +280,7 @@ def perform_analysis(data: wn.utils.Case, config: dict):
         / data.fs[0]
     )
     best_lag = time_lags[max_corr]
-    print(
+    logger.info(
         f"Maximum correlation between microphone and hydrodynamic component: {correlation_hydro[max_corr]:.4e} at lag {best_lag:.6f} seconds."
     )
     c0 = config["sound_speed"]
@@ -284,10 +290,10 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     delay = L / c0
 
     # print
-    print(f"Theoretical time lag: {L / c0:.2e} s")
+    logger.info(f"Theoretical time lag: {L / c0:.2e} s")
     peak_lag = time_lags[np.argmax(correlation_hydro)]
-    print(f"Peak time lag: {peak_lag:.2e} s")
-    print(f"Relative error: {np.abs(peak_lag - L / c0) * c0 / L:.1%}")
+    logger.info(f"Peak time lag: {peak_lag:.2e} s")
+    logger.info(f"Relative error: {np.abs(peak_lag - L / c0) * c0 / L:.1%}")
     fig, ax = plt.subplots()
 
     ax.axvline(L / c0, color="tomato", ls="--", label=r"$t^*=L/c_0$")
@@ -328,9 +334,8 @@ def perform_analysis(data: wn.utils.Case, config: dict):
     plt.close("all")
 
     correlation = []
-    for micro in track(
-        data.microphones.T[:60], transient=True, description="Microphones"
-    ):
+    for i, micro in enumerate(data.microphones.T[:60]):
+        logger.debug(f"Computing correlation for microphone {i + 1}")
         correlation.append(
             np.abs(sg.correlate(micro, cve.signal, mode="full"))
             / len(signal_micro)
@@ -579,10 +584,25 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
 
 def main():
+    root = logging.getLogger()
+    root.setLevel(logging.WARNING)
+
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+    logging.getLogger("wavelet_noise").setLevel(logging.DEBUG)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(_LOG_FMT)
+    root.addHandler(ch)
+
     with open("config.yaml", "r") as f:
         config = yaml.load(f, Loader=yaml.Loader)
 
     if config["compute_all"]:
+        log_dir = config["out_dir_root"]
+        os.makedirs(log_dir, exist_ok=True)
+        _add_file_handler(log_dir)
+
         cases = wn.utils.list_beamforming_cases(config["data_dir"])
 
         for case in track(cases, description="Analysing cases"):
@@ -593,7 +613,7 @@ def main():
                     config["out_dir"] = wn.utils.create_out_directory(
                         config["out_dir_root"], case, data.rmp_idx[rmp]
                     )
-                    print(f"Output directory : {config['out_dir']}")
+                    logger.info(f"Output directory : {config['out_dir']}")
                     perform_analysis(data, config)
             except KeyboardInterrupt:
                 raise KeyboardInterrupt
@@ -620,8 +640,9 @@ def main():
             os.path.join(config["data_dir"], config["case_name"]),
             data.rmp_idx[config["rmp_index"]],
         )
+        _add_file_handler(config["out_dir"])
 
-        print(f"[bold]Output directory[/bold] : {config['out_dir']}")
+        logger.info(f"Output directory : {config['out_dir']}")
         wn.stats.display_diagnostics(
             data.rmp[:, config["rmp_index"]], dt=1.0 / data.fs[0], corr_threshold=0.0
         )
