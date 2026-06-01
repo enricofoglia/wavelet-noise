@@ -1,5 +1,5 @@
 ---
-data_dir: "/home/efoglia/Documents/02_data/05_cd_isae_beamforming"
+data_dir: "/home/daep/e.foglia/Documents/3A/07_fluids_sound/02_data/01_cd_isae_beamforming/data"
 out_dir_root: "./out"
 case_name: "CD-ISAE-5deg-40pr-rmp22-26-1.h5"
 rmp_index: 3
@@ -18,5 +18,5 @@ conditioning:
   detrend_degree: 0
   bandpass_filter:
     apply: true
-    lowcut: 100.0 # Check Anna Caiazzo's parameters
-    highcut: 10000.0 # Check Anna Caiazzo's parameters
+    lowcut: 100.0 
+    highcut: 10000.0 

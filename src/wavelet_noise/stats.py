@@ -1,17 +1,14 @@
+import logging
+
 import numpy as np
 
 import scipy.signal as sg
 import scipy.stats as stats
 import scipy.integrate as integrate
 
-from rich.console import Console
-from rich.table import Table
-from rich import box
-
-
 from typing import Callable
 
-console = Console()
+logger = logging.getLogger(__name__)
 
 
 def _butter_bandpass(lowcut, highcut, fs, order=5, output="sos"):
@@ -158,19 +155,18 @@ def display_diagnostics(
 ) -> None:
     diagnostic = compute_diagnostics(data, dt=dt, corr_threshold=corr_threshold)
 
-    table = Table(box=box.ROUNDED)
-    table.add_column("Metric", style="bold")
-    table.add_column("Value", justify="right")
-
-    table.add_row("Mean", f"{diagnostic['mean']:.4f}")
-    table.add_row("Variance", f"{diagnostic['variance']:.4f}")
-    table.add_row("Skewness", f"{diagnostic['skewness']:.4f}")
-    table.add_row("Kurtosis", f"{diagnostic['kurtosis']:.4f}")
-    table.add_row("Time step", f"{dt:.2e}")
-    table.add_row("Int. Time Scale", f"{diagnostic['integral_time_scale']:.2e}")
-    table.add_row("Eff. Samples", f"{diagnostic['effective_samples']:d}")
-    table.add_row("Total Samples", f"{diagnostic['samples']:d}")
-    console.print(table)
+    logger.info(f"+{'-' * 20}+{'-' * 20}+")
+    logger.info(f"| {'Name':<18} | {'Value':>18} |")
+    logger.info(f"+{'-' * 20}+{'-' * 20}+")
+    logger.info(f"| {'Mean':<18} | {diagnostic['mean']:.4f} |")
+    logger.info(f"| {'Variance':<18} | {diagnostic['variance']:.4f} |")
+    logger.info(f"| {'Skewness':<18} | {diagnostic['skewness']:.4f} |")
+    logger.info(f"| {'Kurtosis':<18} | {diagnostic['kurtosis']:.4f} |")
+    logger.info(f"| {'Time step':<18} | {dt:.2e} |")
+    logger.info(f"| {'Int. Time Scale':<18} | {diagnostic['integral_time_scale']:.2e} |")
+    logger.info(f"| {'Eff. Samples':<18} | {diagnostic['effective_samples']:d} |")
+    logger.info(f"| {'Total Samples':<18} | {diagnostic['samples']:d} |")
+    logger.info(f"+{'-' * 20}+{'-' * 20}+")
 
 
 def group_rv(x: np.ndarray, b: int) -> np.ndarray:

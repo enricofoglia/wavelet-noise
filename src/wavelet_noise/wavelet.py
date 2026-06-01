@@ -1,4 +1,4 @@
-from typing import Tuple
+import logging
 
 from warnings import warn
 
@@ -8,6 +8,7 @@ from dataclasses import dataclass
 
 import pywt as pw
 
+logger = logging.getLogger(__name__)
 
 @dataclass
 class CVEResults:

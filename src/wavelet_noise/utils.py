@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+import logging
+
 import os
 import re
 
@@ -8,6 +10,7 @@ import h5py
 
 import numpy as np
 
+logger = logging.getLogger(__name__)    
 
 @dataclass(frozen=True)
 class Case:
@@ -79,14 +82,14 @@ def extract_pressure_te(
     """
     with h5py.File(_check_file_exists(data_file), "r") as f:
         if verbose:
-            print(f"+{'-' * 20}+{'-' * 20}+")
-            print(f"| {'Name':<18} | {'Value':>18} |")
-            print(f"+{'-' * 20}+{'-' * 20}+")
-            print(f"| {'Timesteps':<18} | {f['N'][()]:>18} |")
-            print(f"| {'Δt sampling':<18} | {f['T_s'][()]:>18.2e} |")
-            print(f"| {'Sampling frequency':<18} | {f['f_s'][()]:18.3f} |")
-            print(f"| {'Total time':<18} | {f['N'][()] * f['T_s'][()]:>18.3f} |")
-            print(f"+{'-' * 20}+{'-' * 20}+")
+            logger.debug(f"+{'-' * 20}+{'-' * 20}+")
+            logger.debug(f"| {'Name':<18} | {'Value':>18} |")
+            logger.debug(f"+{'-' * 20}+{'-' * 20}+")
+            logger.debug(f"| {'Timesteps':<18} | {f['N'][()]:>18} |")
+            logger.debug(f"| {'Δt sampling':<18} | {f['T_s'][()]:>18.2e} |")
+            logger.debug(f"| {'Sampling frequency':<18} | {f['f_s'][()]:18.3f} |")
+            logger.debug(f"| {'Total time':<18} | {f['N'][()] * f['T_s'][()]:>18.3f} |")
+            logger.debug(f"+{'-' * 20}+{'-' * 20}+")
 
         p_avg = f["pressure_mean"]
         p = f["pressure"]
@@ -114,14 +117,14 @@ def get_data_info(data_file: str, verbose: bool = False):
     """
     with h5py.File(_check_file_exists(data_file), "r") as f:
         if verbose:
-            print(f"+{'-' * 20}+{'-' * 20}+")
-            print(f"| {'Name':<18} | {'Value':>18} |")
-            print(f"+{'-' * 20}+{'-' * 20}+")
-            print(f"| {'Timesteps':<18} | {f['N'][()]:>18} |")
-            print(f"| {'Δt sampling':<18} | {f['T_s'][()]:>18.2e} |")
-            print(f"| {'Sampling frequency':<18} | {f['f_s'][()]:18.3f} |")
-            print(f"| {'Total time':<18} | {f['N'][()] * f['T_s'][()]:>18.3f} |")
-            print(f"+{'-' * 20}+{'-' * 20}+")
+            logger.debug(f"+{'-' * 20}+{'-' * 20}+")
+            logger.debug(f"| {'Name':<18} | {'Value':>18} |")
+            logger.debug(f"+{'-' * 20}+{'-' * 20}+")
+            logger.debug(f"| {'Timesteps':<18} | {f['N'][()]:>18} |")
+            logger.debug(f"| {'Δt sampling':<18} | {f['T_s'][()]:>18.2e} |")
+            logger.debug(f"| {'Sampling frequency':<18} | {f['f_s'][()]:18.3f} |")
+            logger.debug(f"| {'Total time':<18} | {f['N'][()] * f['T_s'][()]:>18.3f} |")
+            logger.debug(f"+{'-' * 20}+{'-' * 20}+")
 
         dt = f["T_s"][()]  # adimensional time step
         return {
