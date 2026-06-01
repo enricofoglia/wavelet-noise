@@ -39,6 +39,15 @@ plt.rcParams.update(
 )
 
 logger = logging.getLogger(__name__)
+_LOG_FMT = logging.Formatter("[%(asctime)s] %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+
+
+def _add_file_handler(out_dir: str) -> None:
+    fh = logging.FileHandler(os.path.join(out_dir, "debug.log"))
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(_LOG_FMT)
+    logging.getLogger().addHandler(fh)
+
 
 def perform_analysis(data: wn.utils.Case, config: dict):
     signal = data.rmp[:, config["rmp_index"]]
@@ -425,15 +434,25 @@ def perform_analysis(data: wn.utils.Case, config: dict):
 
 
 def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="[%(asctime)s] %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
+    root = logging.getLogger()
+    root.setLevel(logging.WARNING)
+
+    logging.getLogger(__name__).setLevel(logging.DEBUG)
+    logging.getLogger("wavelet_noise").setLevel(logging.DEBUG)
+
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(_LOG_FMT)
+    root.addHandler(ch)
+
     with open("config.yaml", "r") as f:
         config = yaml.load(f, Loader=yaml.Loader)
 
     if config["compute_all"]:
+        log_dir = config["out_dir_root"]
+        os.makedirs(log_dir, exist_ok=True)
+        _add_file_handler(log_dir)
+
         cases = wn.utils.list_beamforming_cases(config["data_dir"])
 
         for case in track(cases, description="Analysing cases"):
@@ -460,6 +479,7 @@ def main():
             os.path.join(config["data_dir"], config["case_name"]),
             data.rmp_idx[config["rmp_index"]],
         )
+        _add_file_handler(config["out_dir"])
 
         logger.info(f"Output directory : {config['out_dir']}")
         wn.stats.display_diagnostics(
