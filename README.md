@@ -8,7 +8,7 @@ Wavelet transform post-processing for airfoil trailing-edge noise
 The `surd-states` package is not on PyPI and must be cloned manually from GitHub:
 
 ```bash
-git clone https://github.com/MathEXLab/SURD-states.git
+git clone https://github.com/ALD-Lab/SURD-states.git
 ```
 
 Note the path where you cloned it — you will need it in the steps below.
