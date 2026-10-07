@@ -15,13 +15,21 @@ class CVEResults:
     """Results of the Coherent Vortex Extraction convergence."""
 
     iterations: int
+    """Number of iterations performed in the adaptive thresholding process."""
     final_threshold: float
+    """Final threshold value used to separate coherent and incoherent coefficients."""
     num_coherent_coeffs: int
+    """Number of coefficients identified as coherent after the thresholding process."""
     num_incoherent_coeffs: int
+    """Number of coefficients identified as incoherent after the thresholding process."""
     signal: np.ndarray
+    """Extracted coherent signal after the thresholding process."""
     noise: np.ndarray
+    """Extracted incoherent signal after the thresholding process."""
     incoherent_coeffs_history: list
+    """List of number of incoherent coefficients at each iteration."""
     success: bool
+    """Indicates whether the extraction was successful."""
 
 
 def dwt(
